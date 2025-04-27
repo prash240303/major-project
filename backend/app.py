@@ -35,12 +35,10 @@ from guardrails.hub import (
 load_dotenv()
 
 app = FastAPI()
-# markdarshak 
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this in production to your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -301,23 +299,23 @@ async def chat_endpoint(request: QuestionRequest):
         conversation_context = format_conversation_history(conversation_history[:-1])  # Exclude current question
         
         prompt = f"""
-            You are a document Q&A assistant that ONLY answers questions based on the provided documents.
+             You are a professional document Q&A assistant that provides precise responses exclusively based on the document context provided.
 
-            **Context:**  
+            **Document Context:**  
             {context}
             
             {conversation_context}
 
-            **STRICT INSTRUCTIONS:**  
-            - You must ONLY answer questions related to the specific document context provided above.
-            - If the question isn't directly related to the provided documents, respond ONLY with: 
-              "I can only answer questions about the documents in my knowledge base. Your question appears to be unrelated to the documents. Please ask a question related to the content of the uploaded PDFs."
-            - Never attempt to answer questions outside of the document context, even if you know the answer.
-            - Don't use any knowledge that isn't explicitly contained in the provided documents.
-            - Avoid discussing topics not in the provided context, even if they seem related.
-            - Provide a detailed, accurate answer based SOLELY on the context.  
-            - Avoid copying the text directly; rephrase in a conversational tone.  
-            - If you cannot find a direct answer in the context, say: "I cannot find information about that in the provided documents."
+            **CRITICAL INSTRUCTIONS:**  
+            - Only provide information that is explicitly contained in the document context above
+            - If the question cannot be answered using only the provided context, respond with: 
+            "I don't have information about that in my knowledge base. I can only answer questions related to the content in the uploaded documents."
+            - Do not reference yourself as an AI or assistant
+            - Do not mention "document context" or "provided documents" in your response
+            - Maintain a formal, professional tone
+            - Be concise and direct in your answers
+            - Never fabricate information or make assumptions beyond what is stated in the context
+            - If only partial information is available, clearly state the limitations of what you can provide
 
             **Question:** {request.question}
 

@@ -194,7 +194,18 @@ const Chatbot = () => {
       fontSize: '14px',
     },
     loadingIndicator: {
-      color: '#9CA3AF',
+      padding: '12px 16px',
+      borderRadius: '18px 18px 18px 0',
+      backgroundColor: '#BFD7FF',
+      color: '#1F2937',
+      marginRight: 'auto',
+      maxWidth: '85%',
+      marginBottom: '16px',
+      boxShadow: '0 2px 5px rgba(0, 0, 0, 0.05)',
+      fontFamily: "'Inter', sans-serif",
+      fontWeight: 400,
+      lineHeight: 1.5,
+      fontSize: '14px',
       fontSize: '14px',
       display: 'flex',
       alignItems: 'center',
@@ -209,7 +220,7 @@ const Chatbot = () => {
       width: '8px',
       height: '8px',
       borderRadius: '50%',
-      backgroundColor: '#9CA3AF',
+      backgroundColor: '#1F2937',
       animation: 'bounce 1.4s infinite ease-in-out both',
     },
     inputContainer: {
@@ -307,7 +318,7 @@ const Chatbot = () => {
                     marginRight: "8px",
                   }}
                   />
-                </span> Markdarshak Assistant
+                </span> Margdarshak Assistant
             </span>
             <button 
               onClick={toggleChat} 
@@ -331,7 +342,7 @@ const Chatbot = () => {
           >
             {messages.length === 0 && (
               <div style={styles.welcomeMessage}>
-                Hello! I'm your Markdarshak assistant. How can I help you today?
+                Hello! I'm your NITJ Margdarshak assistant. How can I help you today?
               </div>
             )}
             

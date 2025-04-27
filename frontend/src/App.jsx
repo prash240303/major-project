@@ -66,7 +66,7 @@ function App() {
             }}
           />
         </span>
-        Welcome to Markdarshak
+        Welcome to Margdarshak
       </h1>
 
       <div style={styles.mainContent}>
