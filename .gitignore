@@ -1,0 +1,44 @@
+# Ignore Python virtual environments
+backend/venv/
+
+# Ignore Chroma DB folder
+backend/chroma_db/
+
+# Ignore env files
+backend/.env
+
+# Ignore pycache
+backend/__pycache__/
+backend/*.py[cod]
+
+# Ignore Docker / Build files
+*.log
+docker-compose.override.yml
+
+# Ignore Node and Frontend builds
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/.env
+frontend/out/
+
+# Ignore IDE folders
+.vscode/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Database files
+*.sqlite3
+*.db
+*.bak
+
+# Ignore test cache
+backend/.pytest_cache/
+coverage/
+htmlcov/
+.cache/
+
+# Ignore swap files
+*.swp

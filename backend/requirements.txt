@@ -1,0 +1,20 @@
+# streamlit
+# fastapi
+# uvicorn
+# requests
+# langchain-community
+# langchain-nomic
+# langchain-groq
+# pypdf2
+# chromadb
+fastapi
+uvicorn
+pydantic
+python-multipart
+boto3
+langchain
+langchain-community
+langchain-nomic
+langchain-groq
+chromadb
+PyPDF2
