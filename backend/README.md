@@ -37,6 +37,14 @@ source chatbot_env/bin/activate
 pip install -r requirements.txt
 ```
 
+#nomic api key 
+
+```bash
+# Install required packages
+nomic login <api_key>
+```
+
+
 ### 3. Prepare PDF Document
 - Place your PDF document as `doc.pdf` in the project directory
 

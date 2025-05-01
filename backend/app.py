@@ -1,11 +1,10 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import os
-import shutil
-from PyPDF2 import PdfReader
+import pandas as pd
 from langchain.schema import Document
 from langchain_community.vectorstores import Chroma
 from langchain_nomic import NomicEmbeddings
@@ -23,14 +22,6 @@ from guardrails.hub import (
     ProvenanceLLM,
     ProvenanceEmbeddings
 )
-
-
-# todo : 
-# update the fallback message, add dummy contact and email 
-# update the UI 
-# create new dashboard for file upload 
-# enable excel sheet file fetching 
-# fix the text extraction from the files that involve images 
 
 load_dotenv()
 
@@ -67,11 +58,26 @@ retriever = None
 # Conversation memory store
 conversation_store = {}
 
-# Ensure pdf_files directory exists
+CONTACT_INFO = """
+--------------------------------------------------
+For further contact regarding admission queries:
+
+**Dr. Vickram Jeet Singh**
+Associate Dean Academic (Undergraduate Programmes)
+**Email**: as.daug@nitj.ac.in
+**Phone**: 0181-5037542
+**Languages**: English, Hindi, Punjabi
+--------------------------------------------------
+"""
+# Directory paths
 PDF_DIR = "pdf_files"
-if not os.path.exists(PDF_DIR):
-    os.makedirs(PDF_DIR)
-    print(f"[INFO] Created directory: {PDF_DIR}")
+EXCEL_DIR = "excel_files"
+
+# Check if directories exist, if not create them
+for directory in [PDF_DIR, EXCEL_DIR]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print(f"[INFO] Created directory: {directory}")
 
 class Message(BaseModel):
     role: str  # "user" or "assistant"
@@ -86,10 +92,11 @@ class ChatResponse(BaseModel):
     answer: str
     conversation_id: str
 
-class UploadResponse(BaseModel):
-    success: bool
-    message: str
-    files_processed: int = 0
+class SystemStatusResponse(BaseModel):
+    status: str
+    pdf_count: int
+    excel_count: int
+    knowledge_base_initialized: bool
 
 
 def load_pdfs_from_directory(directory=PDF_DIR):
@@ -115,38 +122,102 @@ def load_pdfs_from_directory(directory=PDF_DIR):
             split_docs = splitter.split_documents(pages)
             for doc in split_docs:
                 doc.metadata["source"] = pdf_filename  # ensure consistent metadata
+                doc.metadata["document_type"] = "pdf"  # Add document type metadata
             pdf_documents.extend(split_docs)
-            print(f"[INFO] Loaded and split {pdf_filename} into {len(split_docs)} chunks.")
+            # print(f"[INFO] Loaded and split {pdf_filename} into {len(split_docs)} chunks.")
         except Exception as e:
             print(f"[ERROR] Failed to load {pdf_filename}: {str(e)}")
 
-    print(f"[INFO] Total document chunks created: {len(pdf_documents)}")
+    print(f"[INFO] Total PDF document chunks created: {len(pdf_documents)}")
     return pdf_documents
 
 
+def load_excel_qa_data(directory=EXCEL_DIR):
+    """Load question-answer pairs from Excel files and convert to Document objects for vector store"""
+    excel_documents = []
+    
+    # Get all Excel files (.xlsx, .xls) in the directory
+    excel_files = [f for f in os.listdir(directory) if f.lower().endswith(('.xlsx', '.xls'))]
+    
+    if not excel_files:
+        print(f"[WARN] No Excel files found in {directory}")
+        return excel_documents
+    
+    for excel_filename in excel_files:
+        excel_path = os.path.join(directory, excel_filename)
+        try:
+            # Read the Excel file
+            df = pd.read_excel(excel_path)
+            
+            # Check if the required columns exist
+            if 'questions' not in df.columns or 'answers' not in df.columns:
+                print(f"[ERROR] Excel file {excel_filename} is missing required columns 'questions' and 'answers'")
+                continue
+            
+            # Clean and process the data
+            df = df[['questions', 'answers']].dropna()  # Drop rows with missing values
+            
+            # Create Document objects for each QA pair
+            for _, row in df.iterrows():
+                # For each QA pair, create a document that can be embedded
+                question = row['questions'].strip()
+                answer = row['answers'].strip()
+                
+                # Combine the question and answer in a format that works well for retrieval
+                content = f"Question: {question}\nAnswer: {answer}"
+                
+                # Create Document object with metadata
+                doc = Document(
+                    page_content=content,
+                    metadata={
+                        "source": excel_filename,
+                        "document_type": "excel",
+                        "question": question,
+                        "answer": answer
+                    }
+                )
+                
+                excel_documents.append(doc)
+            
+            print(f"[INFO] Loaded {len(df)} QA pairs from {excel_filename} as documents")
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to load Excel file {excel_filename}: {str(e)}")
+    
+    print(f"[INFO] Total QA documents created from Excel: {len(excel_documents)}")
+    return excel_documents
+
+
 def initialize_vector_store():
-    """Initialize or reinitialize the vector store from documents"""
+    """Initialize or reinitialize the vector store from both PDF documents and Excel QA pairs"""
     global db, retriever
     
     # Load PDFs from local directory
-    documents = load_pdfs_from_directory()
+    pdf_documents = load_pdfs_from_directory()
     
-    if documents:
-        # Initialize Chroma with the documents
-        db = Chroma.from_documents(documents, embeddings, persist_directory="./chroma_db")
+    # Load Excel QA data as documents
+    excel_documents = load_excel_qa_data()
+    
+    # Combine all documents
+    all_documents = pdf_documents + excel_documents
+    
+    if all_documents:
+        # Initialize Chroma with the combined documents
+        db = Chroma.from_documents(all_documents, embeddings, persist_directory="./chroma_db")
         
         # Configure retriever with a proper configuration
-        # Note: Removed the score_threshold parameter which was causing the error
         retriever = db.as_retriever(
             search_kwargs={
                 "k": 5  # Return top 5 most relevant documents
             }
         )
-        print(f"[INFO] Chroma vector store initialized with {len(documents)} documents.")
+        print(f"[INFO] Chroma vector store initialized with {len(all_documents)} documents "
+              f"({len(pdf_documents)} PDF chunks and {len(excel_documents)} Excel QA pairs).")
         return True
     else:
-        print("[ERROR] No documents available to create vector store")
+        print("[WARN] No PDF documents or Excel QA pairs available to create vector store")
         return False
+
 
 def create_guardrails(documents):
     """Create and configure the guardrails for response validation"""
@@ -220,11 +291,28 @@ def create_guardrails(documents):
         print(f"[ERROR] Failed to initialize guardrails: {str(e)}")
         return None
 
+
+def create_fallback_response(message):
+    """Create a standardized fallback response with contact information"""
+    return f"""{message}
+    --------------------------------------------------
+For further contact regarding admission queries:
+
+**Dr. Vickram Jeet Singh**
+Associate Dean Academic (Undergraduate Programmes)
+**Email**: as.daug@nitj.ac.in
+**Phone**: 0181-5037542
+**Languages**: English, Hindi, Punjabi
+--------------------------------------------------
+"""
+
+
 def get_conversation_history(conversation_id):
     """Retrieve conversation history by ID"""
     if conversation_id and conversation_id in conversation_store:
         return conversation_store[conversation_id]
     return []
+
 
 def format_conversation_history(messages):
     """Format conversation history for the LLM prompt"""
@@ -236,6 +324,7 @@ def format_conversation_history(messages):
         role = "User" if msg.role == "user" else "Assistant"
         formatted += f"{role}: {msg.content}\n"
     return formatted
+
 
 def check_question_relevance(question, documents):
     """Check if the question is relevant to the document context"""
@@ -251,6 +340,7 @@ def check_question_relevance(question, documents):
     # Default to allowing the question if we're unsure
     return True, ""
 
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: QuestionRequest):
     """Process a chat request and generate a response with guardrails validation"""
@@ -260,8 +350,8 @@ async def chat_endpoint(request: QuestionRequest):
     if retriever is None:
         success = initialize_vector_store()
         if not success:
-            return {"answer": "The knowledge base is not available. Please upload PDF files first.", 
-                    "conversation_id": request.conversation_id or str(uuid.uuid4())}
+            fallback_message = create_fallback_response("The knowledge base is not available. Please ensure there are PDF or Excel files in the designated directories.")
+            return {"answer": fallback_message, "conversation_id": request.conversation_id or str(uuid.uuid4())}
 
     # Get or create conversation ID
     conversation_id = request.conversation_id or str(uuid.uuid4())
@@ -277,29 +367,48 @@ async def chat_endpoint(request: QuestionRequest):
     conversation_history.append(Message(role="user", content=request.question))
     
     try:
-        # Retrieve relevant documents
+        # Retrieve relevant documents from the unified vector store
         documents = retriever.invoke(request.question)
         print(f"[INFO] Retrieved {len(documents)} documents for question: {request.question}")
 
         # Check if the question is relevant to our document context
         is_relevant, rejection_reason = check_question_relevance(request.question, documents)
         
-        # If the question is not relevant to our documents, provide a clear rejection message
+        # If the question is not relevant to our documents, provide a clear rejection message with contact info
         if not is_relevant:
-            answer = f"I can only answer questions about the documents in my knowledge base. {rejection_reason} Please ask a question related to the content of the uploaded PDFs."
+            answer = create_fallback_response(f"I can only answer questions about the documents in my knowledge. Please contact the officials below for further queries.")
             conversation_history.append(Message(role="assistant", content=answer))
             conversation_store[conversation_id] = conversation_history
             return {"answer": answer, "conversation_id": conversation_id}
             
-        # Generate response for relevant content
+        # Check if we have Excel QA documents in the retrieved documents
+        excel_qa_documents = [doc for doc in documents if doc.metadata.get("document_type") == "excel"]
+        
+        # If we have Excel QA documents and they're highly relevant (first in results), use those directly
+        if excel_qa_documents and documents[0].metadata.get("document_type") == "excel":
+            # Extract the answer from the most relevant Excel QA document
+            top_qa_doc = excel_qa_documents[0]
+            excel_answer = top_qa_doc.metadata.get("answer")
+            
+            if excel_answer:
+                print(f"[INFO] Using direct answer from Excel QA document for question: {request.question}")
+                answer = excel_answer
+                
+                # Update conversation history with assistant's response
+                conversation_history.append(Message(role="assistant", content=answer))
+                conversation_store[conversation_id] = conversation_history
+                return {"answer": answer, "conversation_id": conversation_id}
+        
+        # Generate response for relevant content using all retrieved documents
         context = "\n".join([doc.page_content for doc in documents])
         document_texts = [doc.page_content for doc in documents]
         
         # Include conversation history in the prompt
         conversation_context = format_conversation_history(conversation_history[:-1])  # Exclude current question
         
+        # Also update the prompt template where the fallback message is defined
         prompt = f"""
-             You are a professional document Q&A assistant that provides precise responses exclusively based on the document context provided.
+            You are a professional document Q&A assistant that provides precise responses exclusively based on the document context provided.
 
             **Document Context:**  
             {context}
@@ -309,18 +418,25 @@ async def chat_endpoint(request: QuestionRequest):
             **CRITICAL INSTRUCTIONS:**  
             - Only provide information that is explicitly contained in the document context above
             - If the question cannot be answered using only the provided context, respond with: 
-            "I don't have information about that in my knowledge base. I can only answer questions related to the content in the uploaded documents."
+            "I don't have information about that in my knowledge. Please contact the officials below for further queries.
+            For further contact regarding admission queries:
+            Dr. Vickram Jeet Singh
+            Associate Dean Academic (Undergraduate Programmes)
+            Email: as.daug@nitj.ac.in
+            Phone: 0181-5037542
+            Languages: English, Hindi, Punjabi
+            "
             - Do not reference yourself as an AI or assistant
             - Do not mention "document context" or "provided documents" in your response
             - Maintain a formal, professional tone
             - Be concise and direct in your answers
             - Never fabricate information or make assumptions beyond what is stated in the context
             - If only partial information is available, clearly state the limitations of what you can provide
+            - For any document labeled as Excel QA content, prioritize using the exact answer provided
 
             **Question:** {request.question}
 
             **Response:**"""
-
         # Generate response using Grok (Llama3)
         response = llm.invoke(prompt).content.strip()
         print(f"[INFO] Generated response with Grok (Llama3): {response[:100]}...")  # Log first 100 characters
@@ -349,7 +465,7 @@ async def chat_endpoint(request: QuestionRequest):
 
                 if not validation_result.validated:
                     print(f"[WARN] Response failed guardrails validation: {validation_result.failures}")
-                    answer = "I can only provide information from the documents in my knowledge base. I don't have enough relevant information to answer your question accurately. Please ask something related to the uploaded documents."
+                    answer = create_fallback_response("I can only provide information from the documents in my knowledge. I don't have enough relevant information to answer your question accurately. Please contact the officials below for further queries.")
                 else:
                     print("[INFO] Response passed guardrails validation")
                     answer = response
@@ -374,13 +490,13 @@ async def chat_endpoint(request: QuestionRequest):
                         break
                 
                 if suspicious:
-                    answer = "I can only provide information from the documents in my knowledge base. Please ask a question related to the content of the uploaded PDFs."
+                    answer = create_fallback_response("I can only provide information from the documents in my knowledge.")
                 else:
                     answer = response
         except Exception as e:
             print(f"[ERROR] Guardrails validation failed: {str(e)}")
-            # Default to a safer response
-            answer = "I can only answer questions directly related to the documents in my knowledge base. Please try a more specific question about the document content."
+            # Default to a safer response with contact information
+            answer = create_fallback_response("I can only answer questions directly related to the documents in my knowledge. Please try a more specific question.")
 
         # Update conversation history with assistant's response
         conversation_history.append(Message(role="assistant", content=answer))
@@ -396,44 +512,65 @@ async def chat_endpoint(request: QuestionRequest):
     except Exception as e:
         print(f"[ERROR] Error processing chat request: {str(e)}")
         return {
-            "answer": "I encountered an error processing your request. Please try again or ask a different question.",
+            "answer": create_fallback_response("I encountered an error processing your request. Please try again or ask a different question."),
             "conversation_id": conversation_id
         }
 
 
-@app.post("/upload", response_model=UploadResponse)
-async def upload_pdf(files: List[UploadFile] = File(...)):
-    """Upload PDF files to local directory"""
-    files_processed = 0
-    
+@app.get("/status", response_model=SystemStatusResponse)
+async def get_system_status():
+    """Get system status including file count information"""
     try:
-        for file in files:
-            if file.filename.lower().endswith('.pdf'):
-                # Save file to local directory
-                file_path = os.path.join(PDF_DIR, file.filename)
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
-                
-                files_processed += 1
-                print(f"[INFO] Saved {file.filename} to {PDF_DIR}")
+        # Count PDF files
+        pdf_files = [f for f in os.listdir(PDF_DIR) if f.lower().endswith('.pdf')]
+        pdf_count = len(pdf_files)
         
-        # Reinitialize vector store after uploading new files
-        success = initialize_vector_store()
+        # Count Excel files
+        excel_files = [f for f in os.listdir(EXCEL_DIR) if f.lower().endswith(('.xlsx', '.xls'))]
+        excel_count = len(excel_files)
+        
+        # Check if knowledge base is initialized
+        kb_initialized = retriever is not None
         
         return {
-            "success": success,
-            "message": f"Successfully processed and uploaded {files_processed} files" if success 
-                      else "Files uploaded but failed to reinitialize knowledge base",
-            "files_processed": files_processed
+            "status": "ok",
+            "pdf_count": pdf_count,
+            "excel_count": excel_count,
+            "knowledge_base_initialized": kb_initialized
         }
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/refresh", response_model=SystemStatusResponse)
+async def refresh_knowledge_base():
+    """Force refresh of the knowledge base by reloading all files"""
+    try:
+        success = initialize_vector_store()
+        
+        # Count PDF files
+        pdf_files = [f for f in os.listdir(PDF_DIR) if f.lower().endswith('.pdf')]
+        pdf_count = len(pdf_files)
+        
+        # Count Excel files
+        excel_files = [f for f in os.listdir(EXCEL_DIR) if f.lower().endswith(('.xlsx', '.xls'))]
+        excel_count = len(excel_files)
+        
+        return {
+            "status": "refreshed" if success else "failed",
+            "pdf_count": pdf_count,
+            "excel_count": excel_count,
+            "knowledge_base_initialized": retriever is not None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize the vector store on application startup"""
     initialize_vector_store()
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
