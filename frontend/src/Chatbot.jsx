@@ -304,7 +304,14 @@ const Chatbot = () => {
               "0 10px 25px -5px rgba(59, 130, 246, 0.5), 0 8px 10px -6px rgba(59, 130, 246, 0.3)";
           }}
         >
-          💬
+          <img
+            src="/robot.png"
+            alt=""
+            style={{
+              width: "36px",
+              height: "36px",
+            }}
+          />
         </button>
       )}
 
