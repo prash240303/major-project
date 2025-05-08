@@ -15,65 +15,23 @@ function App() {
     };
   }, []);
 
-  const styles = {
-    container: {
-      fontFamily: "'Inter', sans-serif",
-      maxWidth: "1200px",
-      margin: "0 auto",
-      padding: "0 24px",
-    },
-    header: {
-      fontSize: "28px",
-      fontWeight: "700",
-      color: "#1E40AF",
-      padding: "24px 0",
-      borderBottom: "1px solid #E5E7EB",
-      marginBottom: "24px",
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-      fontFamily: "'Inter', sans-serif",
-    },
-    logo: {
-      fontSize: "32px",
-      marginRight: "8px",
-    },
-    mainContent: {
-      padding: "24px 0",
-      fontFamily: "'Inter', sans-serif",
-    },
-    welcome: {
-      fontSize: "18px",
-      color: "#4B5563",
-      marginBottom: "36px",
-      lineHeight: "1.6",
-      fontFamily: "'Inter', sans-serif",
-    },
-  };
-
   return (
-    <div style={styles.container}>
-      <h1 style={styles.header}>
-        <span style={styles.logo}>
+    <div className="font-inter max-w-[1200px] mx-auto px-6">
+      <h1 className="text-2xl font-bold text-blue-800 py-6 border-b border-gray-200 mb-6 flex items-center gap-3">
+        <span>
           <img
             src="https://www.nitj.ac.in/public/assets/images/logo_250.png"
             alt="Logo"
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "50%",
-              marginRight: "8px",
-            }}
+            className="w-10 h-10 rounded-full mr-2"
           />
         </span>
         Welcome to Margdarshak
       </h1>
 
-      <div style={styles.mainContent}>
-        <p style={styles.welcome}>
-          Your intelligent AI assistant for all your questions and needs. Click
-          on the chat bubble in the bottom right corner to get started.
-        </p>
+      <div className="py-6">
+        <div className="text-lg text-gray-600 mb-9 leading-relaxed">
+          Hello! I'm your NITJ Margdarshak assistant. How can I help you today?
+        </div>
       </div>
 
       <Chatbot />

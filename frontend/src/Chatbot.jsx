@@ -60,370 +60,115 @@ const Chatbot = () => {
     }
   }, [messages]);
 
-  // Add Inter font to the document if it's not already added
   useEffect(() => {
     const link = document.createElement("link");
     link.href =
       "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
-
     return () => {
       document.head.removeChild(link);
     };
   }, []);
 
-  const styles = {
-    fontStyle: {
-      fontFamily: "'Inter', sans-serif",
-    },
-    container: {
-      position: "fixed",
-      bottom: "24px",
-      right: "24px",
-      zIndex: 50,
-    },
-    chatButton: {
-      height: "60px",
-      width: "60px",
-      backgroundColor: "#3B82F6",
-      color: "white",
-      borderRadius: "9999px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      boxShadow:
-        "0 10px 25px -5px rgba(59, 130, 246, 0.5), 0 8px 10px -6px rgba(59, 130, 246, 0.3)",
-      fontSize: "24px",
-      transition: "all 0.3s ease",
-      cursor: "pointer",
-      border: "none",
-      fontFamily: "'Inter', sans-serif",
-    },
-    chatButtonHover: {
-      transform: "scale(1.05)",
-      boxShadow:
-        "0 20px 25px -5px rgba(59, 130, 246, 0.4), 0 10px 10px -5px rgba(59, 130, 246, 0.2)",
-    },
-    chatWindow: {
-      width: "400px",
-      maxHeight: "85vh",
-      backgroundColor: "white",
-      borderRadius: "16px",
-      boxShadow:
-        "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
-      border: "1px solid rgba(229, 231, 235, 0.8)",
-      animation: "slideIn 0.3s ease-out",
-      fontFamily: "'Inter', sans-serif",
-    },
-    header: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "16px 20px",
-      backgroundColor: "#EFF6FF",
-      borderBottom: "1px solid #DBEAFE",
-      fontFamily: "'Inter', sans-serif",
-    },
-    headerTitle: {
-      fontWeight: 600,
-      fontSize: "16px",
-      color: "#1E40AF",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      fontFamily: "'Inter', sans-serif",
-    },
-    logoIcon: {
-      fontSize: "20px",
-    },
-    closeButton: {
-      color: "#6B7280",
-      background: "none",
-      border: "none",
-      cursor: "pointer",
-      borderRadius: "50%",
-      width: "28px",
-      height: "28px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      transition: "all 0.2s",
-      fontFamily: "'Inter', sans-serif",
-    },
-    closeButtonHover: {
-      backgroundColor: "rgba(238, 242, 255, 0.8)",
-      color: "#4B5563",
-    },
-    messageContainer: {
-      flexGrow: 1,
-      overflowY: "auto",
-      padding: "20px",
-      gap: "16px",
-      backgroundColor: "#F9FAFB",
-      display: "flex",
-      flexDirection: "column",
-      fontFamily: "'Inter', sans-serif",
-    },
-    userMessage: {
-      padding: "12px 16px",
-      borderRadius: "18px 18px 0 18px",
-      backgroundColor: "#3B82F6",
-      color: "white",
-      textAlign: "left",
-      marginLeft: "auto",
-      maxWidth: "85%",
-      marginBottom: "16px",
-      boxShadow: "0 2px 5px rgba(59, 130, 246, 0.2)",
-      fontFamily: "'Inter', sans-serif",
-      fontWeight: 400,
-      lineHeight: 1.5,
-      fontSize: "14px",
-    },
-    assistantMessage: {
-      padding: "12px 16px",
-      borderRadius: "18px 18px 18px 0",
-      backgroundColor: "#BFD7FF",
-      color: "#1F2937",
-      marginRight: "auto",
-      maxWidth: "85%",
-      marginBottom: "16px",
-      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.05)",
-      fontFamily: "'Inter', sans-serif",
-      fontWeight: 400,
-      lineHeight: 1.5,
-      fontSize: "14px",
-    },
-    loadingIndicator: {
-      padding: "12px 16px",
-      borderRadius: "18px 18px 18px 0",
-      backgroundColor: "#BFD7FF",
-      color: "#1F2937",
-      marginRight: "auto",
-      maxWidth: "85%",
-      marginBottom: "16px",
-      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.05)",
-      fontFamily: "'Inter', sans-serif",
-      fontWeight: 400,
-      lineHeight: 1.5,
-      fontSize: "14px",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      fontFamily: "'Inter', sans-serif",
-    },
-    loadingDots: {
-      display: "flex",
-      gap: "4px",
-    },
-    dot: {
-      width: "8px",
-      height: "8px",
-      borderRadius: "50%",
-      backgroundColor: "#1F2937",
-      animation: "bounce 1.4s infinite ease-in-out both",
-    },
-    inputContainer: {
-      display: "flex",
-      alignItems: "center",
-      padding: "16px 20px",
-      borderTop: "1px solid #E5E7EB",
-      backgroundColor: "white",
-      fontFamily: "'Inter', sans-serif",
-    },
-    input: {
-      flexGrow: 1,
-      padding: "12px 16px",
-      border: "1px solid #E5E7EB",
-      borderRadius: "9999px",
-      fontSize: "14px",
-      outline: "none",
-      transition: "border-color 0.2s, box-shadow 0.2s",
-      fontFamily: "'Inter', sans-serif",
-    },
-    inputFocus: {
-      borderColor: "#3B82F6",
-      boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.2)",
-    },
-    sendButton: {
-      marginLeft: "8px",
-      padding: "10px",
-      backgroundColor: "#3B82F6",
-      color: "white",
-      borderRadius: "9999px",
-      fontSize: "14px",
-      border: "none",
-      cursor: "pointer",
-      width: "40px",
-      height: "40px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      transition: "all 0.2s",
-      boxShadow: "0 2px 5px rgba(59, 130, 246, 0.3)",
-      fontFamily: "'Inter', sans-serif",
-    },
-    sendButtonHover: {
-      backgroundColor: "#2563EB",
-      transform: "translateY(-1px)",
-      boxShadow: "0 4px 6px rgba(59, 130, 246, 0.3)",
-    },
-    messageTime: {
-      fontSize: "10px",
-      color: "#9CA3AF",
-      marginTop: "4px",
-      textAlign: "right",
-      fontFamily: "'Inter', sans-serif",
-    },
-    welcomeMessage: {
-      textAlign: "center",
-      color: "#6B7280",
-      padding: "16px",
-      fontSize: "14px",
-      fontFamily: "'Inter', sans-serif",
-    },
-  };
-
   return (
-    <div style={styles.container}>
+    <div className="fixed bottom-6 right-6 z-50 font-inter">
       {!chatExpanded && (
         <button
           onClick={toggleChat}
-          style={styles.chatButton}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "scale(1.05)";
-            e.currentTarget.style.boxShadow =
-              "0 20px 25px -5px rgba(59, 130, 246, 0.4), 0 10px 10px -5px rgba(59, 130, 246, 0.2)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.boxShadow =
-              "0 10px 25px -5px rgba(59, 130, 246, 0.5), 0 8px 10px -6px rgba(59, 130, 246, 0.3)";
-          }}
+          className="w-fit h-fit p-0 bg-white overflow-hidden cursor-pointer rounded-full border border-blue-500 shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
         >
-          <img
-            src="/robot.png"
-            alt=""
-            style={{
-              width: "36px",
-              height: "36px",
-            }}
-          />
+          <img src="/icon.webp" alt="Chat Icon" className="w-[72px] h-[72px]" />
         </button>
       )}
 
       {chatExpanded && (
-        <div style={styles.chatWindow}>
-          <div style={styles.header}>
-            <span style={styles.headerTitle}>
-              <span style={styles.logoIcon}>
-                <img
-                  src="https://www.nitj.ac.in/public/assets/images/logo_250.png"
-                  alt="Logo"
-                  style={{
-                    width: "24px",
-                    height: "24px",
-                    borderRadius: "50%",
-                    marginRight: "8px",
-                  }}
-                />
-              </span>{" "}
+        <div className="w-[400px] max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden border border-gray-200 animate-slide-in font-inter">
+          <div className="flex justify-between items-center px-5 py-4 bg-blue-100 border-b border-blue-200">
+            <span className="text-blue-900 font-semibold text-sm flex items-center gap-2">
+              <img
+                src="https://www.nitj.ac.in/public/assets/images/logo_250.png"
+                alt="Logo"
+                className="w-6 h-6 rounded-full"
+              />
               Margdarshak Assistant
             </span>
             <button
               onClick={toggleChat}
-              style={styles.closeButton}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor =
-                  "rgba(238, 242, 255, 0.8)";
-                e.currentTarget.style.color = "#4B5563";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "#6B7280";
-              }}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-blue-50 hover:text-gray-600 transition"
             >
               ✕
             </button>
           </div>
 
-          <div ref={chatContainerRef} style={styles.messageContainer}>
+          <div
+            ref={chatContainerRef}
+            className="flex flex-col gap-4 px-5 py-8 bg-gray-50 flex-grow overflow-y-auto"
+          >
             {messages.length === 0 && (
-              <div style={styles.welcomeMessage}>
+              <div className="text-center text-gray-500 text-base">
                 Hello! I'm your NITJ Margdarshak assistant. How can I help you
                 today?
               </div>
             )}
 
             {messages.map((msg, index) => (
-              <div key={index}>
+              <div
+                key={index}
+                className={`flex flex-col gap-1 ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                } mb-2`}
+              >
                 <div
-                  style={
+                  className={`max-w-[85%] text-sm shadow-md px-4 py-3 rounded-2xl ${
                     msg.role === "user"
-                      ? styles.userMessage
-                      : styles.assistantMessage
-                  }
+                      ? "bg-blue-500 text-white rounded-br-none"
+                      : "bg-blue-100 text-gray-800 rounded-bl-none"
+                  }`}
                 >
                   {msg.content}
                 </div>
+
+                {/* Disclaimer for assistant messages only */}
+                {msg.role !== "user" && <></>}
               </div>
             ))}
 
             {loading && (
-              <div style={styles.loadingIndicator}>
+              <div className="mr-auto max-w-[85%] mb-4 bg-blue-200 text-gray-800 px-4 py-3 rounded-2xl rounded-bl-none text-sm shadow flex items-center gap-2">
                 <span>Thinking</span>
-                <div style={styles.loadingDots}>
-                  <div
-                    style={{ ...styles.dot, animationDelay: "-0.32s" }}
-                  ></div>
-                  <div
-                    style={{ ...styles.dot, animationDelay: "-0.16s" }}
-                  ></div>
-                  <div style={{ ...styles.dot, animationDelay: "0s" }}></div>
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-gray-800 animate-bounce delay-[-0.32s]" />
+                  <div className="w-2 h-2 rounded-full bg-gray-800 animate-bounce delay-[-0.16s]" />
+                  <div className="w-2 h-2 rounded-full bg-gray-800 animate-bounce" />
                 </div>
               </div>
             )}
           </div>
 
-          <div style={styles.inputContainer}>
-            <input
-              type="text"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask me anything..."
-              style={styles.input}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#3B82F6";
-                e.currentTarget.style.boxShadow =
-                  "0 0 0 2px rgba(59, 130, 246, 0.2)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#E5E7EB";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            />
-            <button
-              onClick={sendMessage}
-              style={styles.sendButton}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "#2563EB";
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 6px rgba(59, 130, 246, 0.3)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "#3B82F6";
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 2px 5px rgba(59, 130, 246, 0.3)";
-              }}
-            >
-              ➤
-            </button>
+          <div className="flex flex-col gap-3 items-start px-5 pb-4 pt-1 border-t border-gray-200 bg-white">
+            <div className="text-xs text-gray-500 italic ml-2 mt-1 max-w-[85%]">
+              Disclaimer: This assistant provides general guidance based on
+              available information and is not a substitute for official
+              academic or administrative advice. Always consult NITJ authorities
+              for critical decisions.
+            </div>
+            <div className="flex w-full">
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask me anything..."
+                className="flex-grow px-4 py-3 border border-gray-300 rounded-full text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+              />
+              <button
+                onClick={sendMessage}
+                className="ml-2 p-2 bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-sm hover:bg-blue-600 hover:-translate-y-[1px] shadow transition-transform"
+              >
+                ➤
+              </button>
+            </div>
           </div>
         </div>
       )}
