@@ -13,6 +13,11 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import uuid
+import boto3
+from typing import List
+from botocore.exceptions import ClientError
+
+import shutil
 
 # Guardrails imports
 from guardrails import Guard
@@ -99,105 +104,242 @@ class SystemStatusResponse(BaseModel):
     knowledge_base_initialized: bool
 
 
-def load_pdfs_from_directory(directory=PDF_DIR):
-    """Load PDFs from local directory using LangChain's PyPDFLoader and split text with RecursiveCharacterTextSplitter"""
-    pdf_documents = []
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=200,
-        separators=["\n\n", "\n", ".", " "],
-    )
 
-    pdf_files = [f for f in os.listdir(directory) if f.lower().endswith('.pdf')]
+# Directory paths
+PDF_DIR = "pdf_files"
+EXCEL_DIR = "excel_files"
 
-    if not pdf_files:
-        print(f"[WARN] No PDF files found in {directory}")
-        return pdf_documents
-
-    for pdf_filename in pdf_files:
-        pdf_path = os.path.join(directory, pdf_filename)
-        try:
-            loader = PyPDFLoader(pdf_path)
-            pages = loader.load()  # Each page is a Document
-            split_docs = splitter.split_documents(pages)
-            for doc in split_docs:
-                doc.metadata["source"] = pdf_filename  # ensure consistent metadata
-                doc.metadata["document_type"] = "pdf"  # Add document type metadata
-            pdf_documents.extend(split_docs)
-            # print(f"[INFO] Loaded and split {pdf_filename} into {len(split_docs)} chunks.")
-        except Exception as e:
-            print(f"[ERROR] Failed to load {pdf_filename}: {str(e)}")
-
-    print(f"[INFO] Total PDF document chunks created: {len(pdf_documents)}")
-    return pdf_documents
-
-
-def load_excel_qa_data(directory=EXCEL_DIR):
-    """Load question-answer pairs from Excel files and convert to Document objects for vector store"""
-    excel_documents = []
+def load_pdfs_from_s3(directory=PDF_DIR) -> List[Document]:
+    """
+    Load PDFs from S3 using boto3 and LangChain's PyPDFLoader.
+    Split text with RecursiveCharacterTextSplitter.
+    The PDF files are stored in the specified local directory.
     
-    # Get all Excel files (.xlsx, .xls) in the directory
-    excel_files = [f for f in os.listdir(directory) if f.lower().endswith(('.xlsx', '.xls'))]
-    
-    if not excel_files:
-        print(f"[WARN] No Excel files found in {directory}")
-        return excel_documents
-    
-    for excel_filename in excel_files:
-        excel_path = os.path.join(directory, excel_filename)
-        try:
-            # Read the Excel file
-            df = pd.read_excel(excel_path)
+    Args:
+        directory (str): Local directory path where PDFs will be stored
+        
+    Returns:
+        List[Document]: List of LangChain Document objects from PDF content
+    """
+    try:
+        # Load environment variables
+        bucket_name = os.getenv('S3_BUCKET_NAME')
+        pdf_prefix = os.getenv('S3_PDF_PREFIX', 'pdf_files/')  # Default prefix if not specified
+        aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
+        aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+        aws_region = os.getenv('AWS_REGION', 'us-east-1')
+        
+        if not bucket_name:
+            print("[ERROR] S3_BUCKET_NAME environment variable not set")
+            return []
+        
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        
+        # List all PDF objects in the bucket with the given prefix
+        response = s3_client.list_objects_v2(
+            Bucket=bucket_name,
+            Prefix=pdf_prefix
+        )
+        
+        # Initialize document list
+        all_documents = []
+        
+        # Check if objects exist
+        if 'Contents' not in response:
+            print(f"[INFO] No PDF files found in S3 bucket {bucket_name} with prefix {pdf_prefix}")
+            return []
+        
+        # Process each PDF object
+        for obj in response['Contents']:
+            key = obj['Key']
             
-            # Check if the required columns exist
-            if 'questions' not in df.columns or 'answers' not in df.columns:
-                print(f"[ERROR] Excel file {excel_filename} is missing required columns 'questions' and 'answers'")
+            # Skip if not a PDF file
+            if not key.lower().endswith('.pdf'):
                 continue
             
-            # Clean and process the data
-            df = df[['questions', 'answers']].dropna()  # Drop rows with missing values
+            # Extract filename
+            filename = os.path.basename(key)
+            local_path = os.path.join(directory, filename)
             
-            # Create Document objects for each QA pair
-            for _, row in df.iterrows():
-                # For each QA pair, create a document that can be embedded
-                question = row['questions'].strip()
-                answer = row['answers'].strip()
+            # Download the file
+            print(f"[INFO] Downloading PDF from S3: {key} to {local_path}")
+            s3_client.download_file(bucket_name, key, local_path)
+            
+            # Process PDF with LangChain
+            try:
+                loader = PyPDFLoader(local_path)
+                pdf_documents = loader.load()
                 
-                # Combine the question and answer in a format that works well for retrieval
-                content = f"Question: {question}\nAnswer: {answer}"
+                # Add metadata to track source
+                for doc in pdf_documents:
+                    doc.metadata["source"] = filename
+                    doc.metadata["document_type"] = "pdf"
                 
-                # Create Document object with metadata
-                doc = Document(
-                    page_content=content,
-                    metadata={
-                        "source": excel_filename,
-                        "document_type": "excel",
-                        "question": question,
-                        "answer": answer
-                    }
+                # Split the documents into chunks
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200
                 )
                 
-                excel_documents.append(doc)
-            
-            print(f"[INFO] Loaded {len(df)} QA pairs from {excel_filename} as documents")
-            
-        except Exception as e:
-            print(f"[ERROR] Failed to load Excel file {excel_filename}: {str(e)}")
-    
-    print(f"[INFO] Total QA documents created from Excel: {len(excel_documents)}")
-    return excel_documents
+                split_documents = text_splitter.split_documents(pdf_documents)
+                all_documents.extend(split_documents)
+                
+                print(f"[INFO] Processed {filename}: {len(split_documents)} chunks created")
+                
+            except Exception as e:
+                print(f"[ERROR] Failed to process PDF {filename}: {str(e)}")
+        
+        print(f"[INFO] Successfully processed {len(all_documents)} document chunks from PDFs")
+        return all_documents
+        
+    except ClientError as e:
+        print(f"[ERROR] AWS S3 error: {str(e)}")
+        return []
+    except Exception as e:
+        print(f"[ERROR] Unexpected error in load_pdfs_from_s3: {str(e)}")
+        return []
 
+
+def load_excel_froms3(directory=EXCEL_DIR) -> List[Document]:
+    """
+    Load question-answer pairs from Excel files from S3 using boto3 
+    and convert to Document objects for vector store.
+    The Excel files are stored in the specified local directory.
+    
+    Args:
+        directory (str): Local directory path where Excel files will be stored
+        
+    Returns:
+        List[Document]: List of LangChain Document objects created from Excel QA pairs
+    """
+    try:
+        # Load environment variables
+        bucket_name = os.getenv('S3_BUCKET_NAME')
+        excel_prefix = os.getenv('S3_EXCEL_PREFIX', 'excel-sheets/')  # Default prefix if not specified
+        aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
+        aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+        aws_region = os.getenv('AWS_REGION', 'ap-south-1')
+        
+        if not bucket_name:
+            print("[ERROR] S3_BUCKET_NAME environment variable not set")
+            return []
+        
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        
+        # List all Excel objects in the bucket with the given prefix
+        response = s3_client.list_objects_v2(
+            Bucket=bucket_name,
+            Prefix=excel_prefix
+        )
+        
+        # Initialize document list
+        excel_documents = []
+        
+        # Check if objects exist
+        if 'Contents' not in response:
+            print(f"[INFO] No Excel files found in S3 bucket {bucket_name} with prefix {excel_prefix}")
+            return []
+        
+        # Process each Excel object
+        for obj in response['Contents']:
+            key = obj['Key']
+            
+            # Skip if not an Excel file
+            if not key.lower().endswith(('.xlsx', '.xls')):
+                continue
+            
+            # Extract filename
+            filename = os.path.basename(key)
+            local_path = os.path.join(directory, filename)
+            
+            # Download the file
+            print(f"[INFO] Downloading Excel from S3: {key} to {local_path}")
+            s3_client.download_file(bucket_name, key, local_path)
+            
+            # Process Excel with pandas
+            try:
+                # Load the Excel file - assuming the first sheet contains QA pairs
+                df = pd.read_excel(local_path)
+                
+                # Expected columns: 'question' and 'answer'
+                required_columns = ['question', 'answer']
+                
+                # If columns don't match expected format, try to find columns with similar names
+                available_columns = df.columns.tolist()
+                column_mapping = {}
+                
+                for req_col in required_columns:
+                    for avail_col in available_columns:
+                        if req_col.lower() in avail_col.lower():
+                            column_mapping[req_col] = avail_col
+                            break
+                
+                if len(column_mapping) != len(required_columns):
+                    print(f"[WARN] Excel file {filename} doesn't have the required columns (question, answer)")
+                    continue
+                
+                # Rename columns for consistency
+                df = df.rename(columns=column_mapping)
+                
+                # Create Document objects for each QA pair
+                for _, row in df.iterrows():
+                    # Skip if question or answer is missing
+                    if pd.isna(row['question']) or pd.isna(row['answer']):
+                        continue
+                    
+                    question = str(row['question']).strip()
+                    answer = str(row['answer']).strip()
+                    
+                    # Create a document with the question as content
+                    document = Document(
+                        page_content=f"Question: {question}",
+                        metadata={
+                            "source": filename,
+                            "document_type": "excel",
+                            "question": question,
+                            "answer": answer
+                        }
+                    )
+                    
+                    excel_documents.append(document)
+                
+                print(f"[INFO] Processed {filename}: {len(excel_documents)} QA pairs extracted")
+                
+            except Exception as e:
+                print(f"[ERROR] Failed to process Excel {filename}: {str(e)}")
+        
+        print(f"[INFO] Successfully processed {len(excel_documents)} QA pairs from Excel files")
+        return excel_documents
+        
+    except ClientError as e:
+        print(f"[ERROR] AWS S3 error: {str(e)}")
+        return []
+    except Exception as e:
+        print(f"[ERROR] Unexpected error in load_excel_froms3: {str(e)}")
+        return []
+    
 
 def initialize_vector_store():
     """Initialize or reinitialize the vector store from both PDF documents and Excel QA pairs"""
     global db, retriever
     
     # Load PDFs from local directory
-    pdf_documents = load_pdfs_from_directory()
+    pdf_documents = load_pdfs_from_s3()
     
     # Load Excel QA data as documents
-    excel_documents = load_excel_qa_data()
-    
+    excel_documents = load_excel_froms3()
     # Combine all documents
     all_documents = pdf_documents + excel_documents
     
