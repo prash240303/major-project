@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: fastapi-backend
+    env: docker
+    plan: free
+    autoDeploy: false
+    dockerContext: ./backend
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+    disk:
+      name: chroma_db
+      mountPath: /app/chroma_db
+      sizeGB: 1
+
+  - type: web
+    name: streamlit-frontend
+    env: docker
+    plan: free
+    autoDeploy: false
+    dockerContext: ./frontend
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: BACKEND_URL
+        value: http://fastapi-backend:8000
+    dependsOn:
+      - fastapi-backend
