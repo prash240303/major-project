@@ -20,15 +20,6 @@ from io import BytesIO
 
 import shutil
 
-# Guardrails imports
-from guardrails import Guard
-from guardrails.hub import (
-    SimilarToDocument,
-    GibberishText,
-    ProvenanceLLM,
-    ProvenanceEmbeddings
-)
-
 load_dotenv()
 
 app = FastAPI()
@@ -305,79 +296,6 @@ def initialize_vector_store():
         return False
 
 
-def create_guardrails(documents):
-    """Create and configure the guardrails for response validation"""
-    try:
-        # Create the embed function for documents
-        def embed_function(texts):
-            if isinstance(texts, str):
-                texts = [texts]
-            # Use the same embeddings model as the vector store
-            vectors = embeddings.embed_documents(texts)
-            import numpy as np
-            return np.array(vectors)
-        
-        # Create a custom LLM callable that uses Groq with Llama3 (Grok)
-        def grok_llm_callable(prompt):
-            from langchain_groq import ChatGroq
-            
-            grok_model = ChatGroq(
-                model="llama3-8b-8192",  # Using Grok's Llama3 model
-                api_key=GROQ_API_KEY,
-                temperature=0.1
-            )
-            
-            validation_prompt = f"""
-            You are a strict document validator checking if a given response is fully supported by specific context sources.
-            Your job is to identify if the response contains ANY information not directly from or implied by the context.
-            
-            Here is the context source: 
-            {prompt}
-            
-            Reply with ONLY 'yes' if the text is fully supported by the context source, or 'no' if it contains ANY information not directly supported.
-            Even small details not in the context should result in a 'no'.
-            """
-            
-            response = grok_model.invoke(validation_prompt).content.strip().lower()
-            # Return only "yes" or "no"
-            if "yes" in response:
-                return "yes"
-            else:
-                return "no"
-        
-        # Create guardrails with document validation - stricter settings
-        guard = Guard().use_many(
-            SimilarToDocument(
-                document=documents,
-                threshold=0.8,  # Increased threshold
-                model="llama3-8b-8192"  # Using Grok's Llama3 model
-            ),
-            GibberishText(
-                threshold=0.6,
-                validation_method="sentence",
-                on_fail="reject"  # Changed to reject
-            ),
-            ProvenanceLLM(
-                validation_method="sentence",
-                llm_callable=grok_llm_callable,  # Using our custom Grok callable
-                top_k=3,
-                max_tokens=2,
-                on_fail="reject"  # Changed to reject
-            ),
-            ProvenanceEmbeddings(
-                threshold=0.85,  # Increased threshold
-                validation_method="sentence",
-                on_fail="reject"  # Changed to reject
-            )
-        )
-        
-        print("[INFO] Enhanced guardrails initialized successfully using Grok (Llama3)")
-        return guard
-    except Exception as e:
-        print(f"[ERROR] Failed to initialize guardrails: {str(e)}")
-        return None
-
-
 def create_fallback_response(message):
     """Create a standardized fallback response with contact information"""
     return f"""{message}
@@ -429,7 +347,7 @@ def check_question_relevance(question, documents):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: QuestionRequest):
-    """Process a chat request and generate a response with guardrails validation"""
+    """Process a chat request and generate a response"""
     global retriever, conversation_store
     
     # Ensure vector store is initialized
@@ -487,12 +405,11 @@ async def chat_endpoint(request: QuestionRequest):
         
         # Generate response for relevant content using all retrieved documents
         context = "\n".join([doc.page_content for doc in documents])
-        document_texts = [doc.page_content for doc in documents]
         
         # Include conversation history in the prompt
         conversation_context = format_conversation_history(conversation_history[:-1])  # Exclude current question
         
-        # Also update the prompt template where the fallback message is defined
+        # Update the prompt template
         prompt = f"""
             You are a professional document Q&A assistant that provides precise responses exclusively based on the document context provided.
 
@@ -523,66 +440,33 @@ async def chat_endpoint(request: QuestionRequest):
             **Question:** {request.question}
 
             **Response:**"""
+        
         # Generate response using Grok (Llama3)
         response = llm.invoke(prompt).content.strip()
         print(f"[INFO] Generated response with Grok (Llama3): {response[:100]}...")  # Log first 100 characters
 
-        # Enhanced guardrails validation using Grok
-        try:
-            guard = create_guardrails(document_texts)
-            if guard:
-                def embed_function(texts):
-                    if isinstance(texts, str):
-                        texts = [texts]
-                    vectors = embeddings.embed_documents(texts)
-                    import numpy as np
-                    return np.array(vectors)
-
-                # Stricter validation settings
-                validation_result = guard.validate(
-                    response,
-                    metadata={
-                        "sources": document_texts,
-                        "embed_function": embed_function,
-                        "pass_on_invalid": False,  # Don't pass if invalid
-                        "threshold": 0.75  # Increase threshold for stricter validation
-                    }
-                )
-
-                if not validation_result.validated:
-                    print(f"[WARN] Response failed guardrails validation: {validation_result.failures}")
-                    answer = create_fallback_response("I can only provide information from the documents in my knowledge. I don't have enough relevant information to answer your question accurately. Please contact the officials below for further queries.")
-                else:
-                    print("[INFO] Response passed guardrails validation")
-                    answer = response
-            else:
-                # If guardrails failed to initialize, apply a basic check
-                # Look for phrases that suggest going beyond the document context
-                suspicious_phrases = [
-                    "based on my knowledge",
-                    "generally speaking",
-                    "in general",
-                    "it is widely known",
-                    "typically",
-                    "as an AI",
-                    "I don't have access",
-                    "I'm not able to"
-                ]
-                
-                suspicious = False
-                for phrase in suspicious_phrases:
-                    if phrase.lower() in response.lower():
-                        suspicious = True
-                        break
-                
-                if suspicious:
-                    answer = create_fallback_response("I can only provide information from the documents in my knowledge.")
-                else:
-                    answer = response
-        except Exception as e:
-            print(f"[ERROR] Guardrails validation failed: {str(e)}")
-            # Default to a safer response with contact information
-            answer = create_fallback_response("I can only answer questions directly related to the documents in my knowledge. Please try a more specific question.")
+        # Apply a basic check for suspicious phrases that might indicate hallucination
+        suspicious_phrases = [
+            "based on my knowledge",
+            "generally speaking",
+            "in general",
+            "it is widely known",
+            "typically",
+            "as an AI",
+            "I don't have access",
+            "I'm not able to"
+        ]
+        
+        suspicious = False
+        for phrase in suspicious_phrases:
+            if phrase.lower() in response.lower():
+                suspicious = True
+                break
+        
+        if suspicious:
+            answer = create_fallback_response("I can only provide information from the documents in my knowledge.")
+        else:
+            answer = response
 
         # Update conversation history with assistant's response
         conversation_history.append(Message(role="assistant", content=answer))

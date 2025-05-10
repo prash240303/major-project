@@ -79,10 +79,6 @@ grpcio
 grpcio-status
 guardrails-ai
 guardrails-api-client
-guardrails-grhub-gibberish-text
-guardrails-grhub-provenance-embeddings
-guardrails-grhub-provenance-llm
-guardrails-grhub-similar-to-document
 guardrails_hub_types
 h11
 httpcore
