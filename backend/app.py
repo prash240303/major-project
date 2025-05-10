@@ -75,15 +75,7 @@ Associate Dean Academic (Undergraduate Programmes)
 **Languages**: English, Hindi, Punjabi
 --------------------------------------------------
 """
-# Directory paths
-PDF_DIR = "pdf_files"
-EXCEL_DIR = "excel_files"
 
-# Check if directories exist, if not create them
-for directory in [PDF_DIR, EXCEL_DIR]:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-        print(f"[INFO] Created directory: {directory}")
 
 class Message(BaseModel):
     role: str  # "user" or "assistant"
@@ -104,194 +96,184 @@ class SystemStatusResponse(BaseModel):
     excel_count: int
     knowledge_base_initialized: bool
 
-
-
-# Directory paths
+# s3 bucket Directory paths
 PDF_DIR = "pdf_files"
 EXCEL_DIR = "excel_files"
 
 def load_pdfs_from_s3() -> List[Document]:
+    """
+    Load the pdf files from s3, where in the bucket, "/pdf-files" folder the PDFs are stored,
+    fetch those files using boto3 and convert them to LangChain Document objects
+    that can be used for the vector store db.
+    
+    Returns:
+        List[Document]: List of Document objects created from pdf files.
+    """
     try:
-        # Load environment variables
-        bucket_name = os.getenv('S3_BUCKET_NAME')
-        pdf_prefix = os.getenv('S3_PDF_PREFIX', 'pdf_files/')
-        aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-        aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-        aws_region = os.getenv('AWS_REGION', 'us-east-1')
-
+        # Initialize boto3 S3 client
+        s3 = boto3.client('s3')
+        
+        # Get the bucket name from environment variable
+        bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+        
         if not bucket_name:
-            print("[ERROR] S3_BUCKET_NAME environment variable not set")
+            print("[ERROR] AWS_S3_BUCKET_NAME environment variable not set")
             return []
-
-        # Initialize S3 client
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=aws_region
-        )
-
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=pdf_prefix)
-        all_documents = []
-
+        
+        # List objects in the PDF_DIR prefix
+        response = s3.list_objects_v2(Bucket=bucket_name, Prefix=f"{PDF_DIR}/")
+        
         if 'Contents' not in response:
-            print(f"[INFO] No PDF files found in S3 bucket {bucket_name} with prefix {pdf_prefix}")
+            print(f"[INFO] No PDF files found in s3://{bucket_name}/{PDF_DIR}/")
             return []
-
+        
+        documents = []
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len
+        )
+        
+        # Process each PDF file
         for obj in response['Contents']:
             key = obj['Key']
+            
+            # Skip directory objects or non-PDF files
             if not key.lower().endswith('.pdf'):
                 continue
-
-            filename = os.path.basename(key)
-            print(f"[INFO] Streaming PDF from S3: {key}")
-
+                
+            print(f"[INFO] Processing PDF from S3: {key}")
+            
             try:
-                # Read PDF content as bytes
-                s3_object = s3_client.get_object(Bucket=bucket_name, Key=key)
-                file_bytes = s3_object['Body'].read()
-                temp_filename = os.path.join(PDF_DIR, f"temp_{uuid.uuid4().hex}.pdf")
-
-                # Write the file temporarily
-                with open(temp_filename, 'wb') as temp_file:
-                    temp_file.write(file_bytes)
-
-                # Now load using the file path
-                loader = PyPDFLoader(temp_filename)
-                pdf_documents = loader.load()
-
-                # Clean up temporary file
-                os.remove(temp_filename)
-
-                pdf_documents = loader.load()
-
-                for doc in pdf_documents:
-                    doc.metadata["source"] = filename
+                # Create a temporary file
+                temp_file_path = f"/tmp/{uuid.uuid4()}.pdf"
+                
+                # Download the file from S3
+                s3.download_file(bucket_name, key, temp_file_path)
+                
+                # Load the PDF using PyPDFLoader
+                loader = PyPDFLoader(temp_file_path)
+                pdf_docs = loader.load()
+                
+                # Split the documents
+                split_docs = text_splitter.split_documents(pdf_docs)
+                
+                # Add metadata to identify the source
+                for doc in split_docs:
+                    doc.metadata["source"] = key
                     doc.metadata["document_type"] = "pdf"
-
-                # Split the documents into chunks
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=1000,
-                    chunk_overlap=200
-                )
-                split_documents = text_splitter.split_documents(pdf_documents)
-                all_documents.extend(split_documents)
-
-                print(f"[INFO] Processed {filename}: {len(split_documents)} chunks created")
-
+                
+                documents.extend(split_docs)
+                
+                # Clean up temp file
+                os.remove(temp_file_path)
+                
             except Exception as e:
-                print(f"[ERROR] Failed to process PDF {filename}: {str(e)}")
-
-        print(f"[INFO] Successfully processed {len(all_documents)} PDF chunks from S3")
-        return all_documents
-
+                print(f"[ERROR] Failed to process PDF {key}: {str(e)}")
+                # Continue with other files even if one fails
+                continue
+        
+        print(f"[INFO] Successfully loaded {len(documents)} document chunks from {len(response['Contents'])} PDF files in S3")
+        return documents
+        
     except ClientError as e:
-        print(f"[ERROR] AWS S3 error: {str(e)}")
+        print(f"[ERROR] AWS S3 client error: {str(e)}")
         return []
     except Exception as e:
         print(f"[ERROR] Unexpected error in load_pdfs_from_s3: {str(e)}")
         return []
 
+
 def load_excel_froms3() -> List[Document]:
     """
-    Load question-answer pairs from Excel files stored in S3 directly in memory using boto3
-    and convert them to LangChain Document objects for vector store usage.
+    Load question-answer pairs from Excel files stored in S3 (stored in the '/excel_files' directory
+    of s3 bucket) directly in memory using boto3 and convert them to LangChain Document objects
+    for vector store usage.
     
     Returns:
-        List[Document]: List of Document objects created from Excel QA pairs.
+        List[Document]: List of Document objects created from Excel sheet QA pairs.
     """
     try:
-        # Load environment variables
-        bucket_name = os.getenv('S3_BUCKET_NAME')
-        excel_prefix = os.getenv('S3_EXCEL_PREFIX', 'excel-sheets/')
-        aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-        aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-        aws_region = os.getenv('AWS_REGION', 'ap-south-1')
-
+        # Initialize boto3 S3 client
+        s3 = boto3.client('s3')
+        
+        # Get the bucket name from environment variable
+        bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+        
         if not bucket_name:
-            print("[ERROR] S3_BUCKET_NAME environment variable not set")
+            print("[ERROR] AWS_S3_BUCKET_NAME environment variable not set")
             return []
-
-        # Initialize S3 client
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=aws_region
-        )
-
-        # List Excel objects in S3
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=excel_prefix)
-        excel_documents = []
-
+        
+        # List objects in the EXCEL_DIR prefix
+        response = s3.list_objects_v2(Bucket=bucket_name, Prefix=f"{EXCEL_DIR}/")
+        
         if 'Contents' not in response:
-            print(f"[INFO] No Excel files found in S3 bucket {bucket_name} with prefix {excel_prefix}")
+            print(f"[INFO] No Excel files found in s3://{bucket_name}/{EXCEL_DIR}/")
             return []
-
+        
+        documents = []
+        
+        # Process each Excel file
         for obj in response['Contents']:
             key = obj['Key']
-            if not key.lower().endswith(('.xlsx', '.xls')):
+            
+            # Skip directory objects or non-Excel files
+            if not (key.lower().endswith('.xlsx') or key.lower().endswith('.xls')):
                 continue
-
-            filename = os.path.basename(key)
-            print(f"[INFO] Streaming Excel from S3: {key}")
-
+                
+            print(f"[INFO] Processing Excel file from S3: {key}")
+            
             try:
-                # Load file content in memory
-                s3_object = s3_client.get_object(Bucket=bucket_name, Key=key)
-                excel_bytes = BytesIO(s3_object['Body'].read())
-
-                # Read the Excel file into DataFrame
-                df = pd.read_excel(excel_bytes)
-
+                # Get the file from S3 into memory
+                response = s3.get_object(Bucket=bucket_name, Key=key)
+                excel_data = BytesIO(response['Body'].read())
+                
+                # Read Excel file with pandas
+                df = pd.read_excel(excel_data)
+                
+                # Ensure required columns exist
                 required_columns = ['question', 'answer']
-                available_columns = df.columns.tolist()
-                column_mapping = {}
-
-                for req_col in required_columns:
-                    for avail_col in available_columns:
-                        if req_col.lower() in avail_col.lower():
-                            column_mapping[req_col] = avail_col
-                            break
-
-                if len(column_mapping) != len(required_columns):
-                    print(f"[WARN] Excel file {filename} doesn't have required columns (question, answer)")
+                if not all(col in df.columns for col in required_columns):
+                    print(f"[WARN] Excel file {key} missing required columns (question, answer). Skipping.")
                     continue
-
-                df = df.rename(columns=column_mapping)
-
-                for _, row in df.iterrows():
-                    if pd.isna(row['question']) or pd.isna(row['answer']):
-                        continue
-
+                
+                # Process each row in the Excel file
+                for idx, row in df.iterrows():
                     question = str(row['question']).strip()
                     answer = str(row['answer']).strip()
-
-                    document = Document(
-                        page_content=f"Question: {question}",
+                    
+                    # Skip rows with empty questions or answers
+                    if not question or not answer or question.lower() == 'nan' or answer.lower() == 'nan':
+                        continue
+                    
+                    # Create a document from this QA pair
+                    # Use the question as the page_content to match against user queries
+                    doc = Document(
+                        page_content=question,
                         metadata={
-                            "source": filename,
+                            "source": key,
                             "document_type": "excel",
                             "question": question,
-                            "answer": answer
+                            "answer": answer,
+                            "row_index": idx
                         }
                     )
-                    excel_documents.append(document)
-
-                print(f"[INFO] Processed {filename}: {len(df)} QA pairs extracted")
-
+                    documents.append(doc)
+            
             except Exception as e:
-                print(f"[ERROR] Failed to process Excel {filename}: {str(e)}")
-
-        print(f"[INFO] Successfully processed {len(excel_documents)} QA pairs from Excel files")
-        return excel_documents
-
+                print(f"[ERROR] Failed to process Excel file {key}: {str(e)}")
+                # Continue with other files even if one fails
+                continue
+        
+        print(f"[INFO] Successfully loaded {len(documents)} QA pairs from Excel files in S3")
+        return documents
+        
     except ClientError as e:
-        print(f"[ERROR] AWS S3 error: {str(e)}")
+        print(f"[ERROR] AWS S3 client error: {str(e)}")
         return []
     except Exception as e:
         print(f"[ERROR] Unexpected error in load_excel_froms3: {str(e)}")
-        return []   
+        return []
 
 def initialize_vector_store():
     """Initialize or reinitialize the vector store from both PDF documents and Excel QA pairs"""
