@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 
 # Set working directory
-WORKDIR /app
+WORKDIR /backend
 
 # Install system dependencies (if needed by chromadb or others)
 RUN apt-get update && apt-get install -y \
@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Ensure mount point exists for chroma_db
-RUN mkdir -p /app/chroma_db
+RUN mkdir -p /backend/chroma_db
 
 # Expose port for uvicorn
 EXPOSE 8000
