@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-
+const BACKEND_URL = "http://localhost:8000"; // Replace with your backend URL
+// const BACKEND_URL = "https://margdarshak-backend.onrender.com"|| ""; // Uncomment this line for production
 const Chatbot = () => {
   const [chatExpanded, setChatExpanded] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -30,10 +30,16 @@ const Chatbot = () => {
 
       const response = await axios.post(`${BACKEND_URL}/chat`, payload);
       const data = response.data;
+      console.log("Response:", data);
 
+      // Include source_links and source_link_metadata in the assistant message
       setMessages([
         ...newMessages,
-        { role: "assistant", content: data.answer || "No response available." },
+        {
+          role: "assistant",
+          content: data.answer || "No response available.",
+          source_link_metadata: data.source_link_metadata || null,
+        },
       ]);
       setConversationId(data.conversation_id);
     } catch (error) {
@@ -72,7 +78,7 @@ const Chatbot = () => {
   }, []);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-inter">
+    <div className="fixed bottom-6  right-6 z-50 font-inter">
       {!chatExpanded && (
         <button
           onClick={toggleChat}
@@ -83,7 +89,7 @@ const Chatbot = () => {
       )}
 
       {chatExpanded && (
-        <div className="w-[400px] max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden border border-gray-200 animate-slide-in font-inter">
+        <div className="w-[400px]  max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden border border-gray-200 animate-slide-in font-inter">
           <div className="flex justify-between items-center px-5 py-4 bg-blue-100 border-b border-blue-200">
             <span className="text-blue-900 font-semibold text-sm flex items-center gap-2">
               <img
@@ -115,12 +121,12 @@ const Chatbot = () => {
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`flex flex-col gap-1 ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
+                className={`flex w-full flex-col gap-1 ${
+                  msg.role === "user" ? "justify-end items-end" : "justify-start"
                 } mb-2`}
               >
                 <div
-                  className={`max-w-[85%] text-sm shadow-md px-4 py-3 rounded-2xl ${
+                  className={`max-w-[95%] text-sm shadow-md px-4 py-3 rounded-2xl ${
                     msg.role === "user"
                       ? "bg-blue-500 text-white rounded-br-none"
                       : "bg-blue-100 text-gray-800 rounded-bl-none"
@@ -129,8 +135,33 @@ const Chatbot = () => {
                   {msg.content}
                 </div>
 
-                {/* Disclaimer for assistant messages only */}
-                {msg.role !== "user" && <></>}
+                {/* Source link below assistant messages */}
+                {msg.role === "assistant" && msg.source_link_metadata && (
+                  <div className="text-xs text-blue-600 hover:text-blue-800 underline ml-2 mt-1">
+                    <a
+                      href={msg.source_link_metadata}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                        />
+                      </svg>
+                      Source : {msg.source_link_metadata}
+                    </a>
+                  </div>
+                )}
               </div>
             ))}
 
