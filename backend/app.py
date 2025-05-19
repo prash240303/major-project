@@ -204,9 +204,6 @@ def load_pdfs_from_s3() -> List[Document]:
                 print(f"[CONSOLE] Extracting metadata from {temp_file_path}")
                 pdf_metadata = extract_pdf_metadata(temp_file_path)
                 
-                # Debug: Print the extracted metadata 
-                print(f"[CONSOLE] Complete PDF metadata for {key}: {pdf_metadata}")
-                
                 # Check specifically for the Description field
                 source_link = None
                 # Check all possible Description key variations
@@ -220,8 +217,6 @@ def load_pdfs_from_s3() -> List[Document]:
                 if not source_link:
                     print(f"[CONSOLE] No Description/source link found in metadata")
                 
-                # Load the PDF using PyPDFLoader
-                print(f"[CONSOLE] Loading PDF content with PyPDFLoader")
                 loader = PyPDFLoader(temp_file_path)
                 pdf_docs = loader.load()
                 print(f"[CONSOLE] Loaded {len(pdf_docs)} pages from PDF")
@@ -273,109 +268,6 @@ def load_pdfs_from_s3() -> List[Document]:
         print(f"[ERROR] Unexpected error in load_pdfs_from_s3: {str(e)}")
         return []
 
-
-def load_pdfs_from_s3() -> List[Document]:
-    """
-    Load the pdf files from s3, where in the bucket, "/pdf-files" folder the PDFs are stored,
-    fetch those files using boto3 and convert them to LangChain Document objects
-    that can be used for the vector store db.
-    
-    Returns:
-        List[Document]: List of Document objects created from pdf files.
-    """
-    try:
-        # Initialize boto3 S3 client
-        s3 = boto3.client('s3')
-        
-        # Get the bucket name from environment variable
-        bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
-        
-        if not bucket_name:
-            print("[ERROR] AWS_S3_BUCKET_NAME environment variable not set")
-            return []
-        
-        # List objects in the PDF_DIR prefix
-        response = s3.list_objects_v2(Bucket=bucket_name, Prefix=f"{PDF_DIR}/")
-        
-        if 'Contents' not in response:
-            print(f"[INFO] No PDF files found in s3://{bucket_name}/{PDF_DIR}/")
-            return []
-        
-        documents = []
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        
-        # Process each PDF file
-        for obj in response['Contents']:
-            key = obj['Key']
-            
-            # Skip directory objects or non-PDF files
-            if not key.lower().endswith('.pdf'):
-                continue
-                
-            print(f"[INFO] Processing PDF from S3: {key}")
-            
-            try:
-                # Create a temporary file
-                temp_file_path = f"/tmp/{uuid.uuid4()}.pdf"
-                
-                # Download the file from S3
-                s3.download_file(bucket_name, key, temp_file_path)
-                
-                # Extract PDF metadata using PyPDF2 before loading with PyPDFLoader
-                pdf_metadata = extract_pdf_metadata(temp_file_path)
-                source_link = None
-                
-                # Check if we have a description field that contains a URL
-                if "Description" in pdf_metadata:
-                    source_link = pdf_metadata["Description"]
-                elif "/Description" in pdf_metadata:
-                    source_link = pdf_metadata["/Description"]
-                
-                # Load the PDF using PyPDFLoader
-                loader = PyPDFLoader(temp_file_path)
-                pdf_docs = loader.load()
-                
-                # Split the documents
-                split_docs = text_splitter.split_documents(pdf_docs)
-                
-                # Add metadata to identify the source
-                for doc in split_docs:
-                    doc.metadata["source"] = key
-                    doc.metadata["document_type"] = "pdf"
-                    
-                    # Add the source link from the PDF metadata if available
-                    if source_link:
-                        doc.metadata["source_link"] = source_link  # Use a consistent key "source_link"
-                    
-                    # Add other metadata fields if needed
-                    for meta_key, meta_value in pdf_metadata.items():
-                        # Convert PyPDF2 metadata keys (which often have '/' prefix) to clean keys
-                        clean_key = meta_key.replace('/', '') if meta_key.startswith('/') else meta_key
-                        doc.metadata[clean_key.lower()] = str(meta_value)
-                
-                documents.extend(split_docs)
-                
-                # Clean up temp file
-                os.remove(temp_file_path)
-                
-            except Exception as e:
-                print(f"[ERROR] Failed to process PDF {key}: {str(e)}")
-                # Continue with other files even if one fails
-                continue
-        
-        print(f"[INFO] Successfully loaded {len(documents)} document chunks from {len(response['Contents'])} PDF files in S3")
-        return documents
-        
-    except ClientError as e:
-        print(f"[ERROR] AWS S3 client error: {str(e)}")
-        return []
-    except Exception as e:
-        print(f"[ERROR] Unexpected error in load_pdfs_from_s3: {str(e)}")
-        return []
 
 def load_excel_froms3() -> List[Document]:
     """
@@ -557,7 +449,7 @@ async def chat_endpoint(request: QuestionRequest):
         success = initialize_vector_store()
         if not success:
             fallback_message = create_fallback_response("The knowledge base is not available. Please ensure there are PDF or Excel files in the designated directories.")
-            return {"answer": fallback_message, "conversation_id": request.conversation_id or str(uuid.uuid4()), "source_links": [], "source_link_metadata": None}
+            return {"answer": fallback_message, "conversation_id": request.conversation_id or str(uuid.uuid4()), "source_link_metadata": None}
 
     # Get or create conversation ID
     conversation_id = request.conversation_id or str(uuid.uuid4())
@@ -585,34 +477,39 @@ async def chat_endpoint(request: QuestionRequest):
             answer = create_fallback_response(f"I can only answer questions about the documents in my knowledge. Please contact the officials below for further queries.")
             conversation_history.append(Message(role="assistant", content=answer))
             conversation_store[conversation_id] = conversation_history
-            return {"answer": answer, "conversation_id": conversation_id, "source_links": [], "source_link_metadata": None}
+            return {"answer": answer, "conversation_id": conversation_id, "source_link_metadata": None}
         
-        # Extract source links and subject metadata from the retrieved documents
-        source_link_metadata = None
+        # Extract metadata only from PDF documents used as context
+        pdf_metadata = None
+        s3 = boto3.client('s3')
+        bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
         
-        # Print all document metadata for debugging
-        print(f"\n[CONSOLE] Document metadata analysis for question: {request.question}")
-        for i, doc in enumerate(documents):
-            print(f"[CONSOLE] Document {i} metadata full dump: {doc.metadata}")
+        # Find PDF documents in the retrieved documents
+        pdf_docs = [doc for doc in documents if doc.metadata.get("document_type") == "pdf"]
         
-        # Extract subject metadata - take the first valid one we find
-        print(f"\n[CONSOLE] Looking for subject metadata")
-        for i, doc in enumerate(documents):
-            # Check for Subject fields with various casing and formats
-            subject_keys = ["Subject", "/Subject", "subject"]
-            for key in subject_keys:
-                if key in doc.metadata and doc.metadata[key]:
-                    source_link_metadata = doc.metadata[key]
-                    print(f"[CONSOLE] Document {i}: Found subject '{source_link_metadata}' in key '{key}'")
-                    break
+        if pdf_docs:
+            # Use the first PDF document's source to get metadata
+            pdf_source = pdf_docs[0].metadata.get("source")
             
-            # If we found a subject, stop looking
-            if source_link_metadata:
-                break
-                
- 
-        print(f"[CONSOLE] Final extracted subject metadata: {source_link_metadata}")
-            
+            if pdf_source and bucket_name:
+                try:
+                    # Create a temporary file to store the PDF
+                    temp_file_path = f"/tmp/{uuid.uuid4()}.pdf"
+                    
+                    # Download the file from S3
+                    s3.download_file(bucket_name, pdf_source, temp_file_path)
+                    print(f"[CONSOLE] Downloaded PDF to temporary path: {temp_file_path}")
+                    
+                    # Extract PDF metadata
+                    pdf_metadata = extract_pdf_metadata(temp_file_path)
+                    print(f"[CONSOLE] Extracted metadata for context PDF: {pdf_metadata}")
+                    
+                    # Clean up temp file
+                    os.remove(temp_file_path)
+                    
+                except Exception as e:
+                    print(f"[ERROR] Failed to extract PDF metadata: {str(e)}")
+        
         # Check if we have Excel QA documents in the retrieved documents
         excel_qa_documents = [doc for doc in documents if doc.metadata.get("document_type") == "excel"]
         
@@ -630,11 +527,11 @@ async def chat_endpoint(request: QuestionRequest):
                 conversation_history.append(Message(role="assistant", content=answer))
                 conversation_store[conversation_id] = conversation_history
                 
-                # Return answer with source links and subject metadata if available
+                # Return answer with metadata if available
                 return {
                     "answer": answer, 
                     "conversation_id": conversation_id,
-                    "source_link_metadata": source_link_metadata
+                    "source_link_metadata": None  # Excel docs don't have PDF metadata
                 }
         
         # Generate response for relevant content using all retrieved documents
@@ -708,11 +605,26 @@ async def chat_endpoint(request: QuestionRequest):
         # Store updated conversation history
         conversation_store[conversation_id] = conversation_history
         
-        # Log source links and subject being returned
-        print(f"[INFO] Conversation {conversation_id} now has {len(conversation_history)} messages")
-        print(f"[CONSOLE] Final subject metadata being returned: {source_link_metadata}")
+        # Get source_link_metadata from pdf_metadata if available
+        source_link_metadata = None
+        if pdf_metadata:
+            description_keys = ['Description', '/Description', 'description']
+            for key in description_keys:
+                if key in pdf_metadata and pdf_metadata[key]:
+                    source_link_metadata = pdf_metadata[key]
+                    print(f"[CONSOLE] Using metadata from source PDF, key '{key}': {source_link_metadata}")
+                    break
+            
+            # If no Description found, try Subject
+            if not source_link_metadata:
+                subject_keys = ['Subject', '/Subject', 'subject']
+                for key in subject_keys:
+                    if key in pdf_metadata and pdf_metadata[key]:
+                        source_link_metadata = pdf_metadata[key]
+                        print(f"[CONSOLE] Using subject metadata from source PDF, key '{key}': {source_link_metadata}")
+                        break
         
-        # Return answer with source links and subject metadata if available
+        # Return answer with metadata if available
         return {
             "answer": answer, 
             "conversation_id": conversation_id,
@@ -724,10 +636,9 @@ async def chat_endpoint(request: QuestionRequest):
         return {
             "answer": create_fallback_response("I encountered an error processing your request. Please try again or ask a different question."),
             "conversation_id": conversation_id,
-            "source_links": [],
             "source_link_metadata": None
         }
-    
+
 @app.get("/status", response_model=SystemStatusResponse)
 async def get_system_status():
     """Get system status including file count information"""
