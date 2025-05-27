@@ -13,3 +13,5 @@ botocore
 PyPDF2
 openpyxl
 aiofiles
+pypdf
+chromadb
