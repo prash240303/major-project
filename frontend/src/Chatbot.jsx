@@ -30,7 +30,7 @@ const Chatbot = () => {
         conversation_id: conversationId,
         messages: newMessages,
       };
-
+      console.log("payload", payload)
       const response = await axios.post(`${BACKEND_URL}/chat`, payload);
       const data = response.data;
       console.log("Response:", data);
