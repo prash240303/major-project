@@ -27,8 +27,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5173",  # Or 5173 if using Vite
-    "https://major-project-lac.vercel.app",
-    "https://margdarshak.tech",  
+    "https://major-project-lac.vercel.app/"
 ]
 
 app.add_middleware(
