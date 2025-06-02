@@ -14,6 +14,9 @@ const Chatbot = () => {
   const [loading, setLoading] = useState(false);
   const chatContainerRef = useRef(null);
 
+
+
+  
   const toggleChat = () => setChatExpanded((prev) => !prev);
 
   const sendMessage = async () => {
