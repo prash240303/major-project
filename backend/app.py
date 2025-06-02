@@ -26,9 +26,9 @@ load_dotenv()
 app = FastAPI()
 
 origins = [
-    "https://major-project-lac.vercel.app/",  
+    "http://localhost:3000",  # Or 5173 if using Vite
+    "https://major-project-lac.vercel.app"
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

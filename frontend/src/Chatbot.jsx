@@ -3,8 +3,8 @@ import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
 // const BACKEND_URL = "https://margdarshak-backend.onrender.com"|| ""; // Uncomment this line for production
-const BACKEND_URL = "http://15.207.109.149:8000";
-
+// const BACKEND_URL = "http://15.207.109.149:8000";
+const BACKEND_URL = "https://margdarshak.tech";
 
 const Chatbot = () => {
   const [chatExpanded, setChatExpanded] = useState(false);
@@ -83,82 +83,82 @@ const Chatbot = () => {
   // Animation variants
   const chatWindowVariants = {
     hidden: { opacity: 0, scale: 0.8, y: 20 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
+    visible: {
+      opacity: 1,
+      scale: 1,
       y: 0,
-      transition: { 
-        type: "spring", 
-        damping: 25, 
-        stiffness: 300 
-      }
+      transition: {
+        type: "spring",
+        damping: 25,
+        stiffness: 300,
+      },
     },
-    exit: { 
-      opacity: 0, 
-      scale: 0.8, 
+    exit: {
+      opacity: 0,
+      scale: 0.8,
       y: 20,
-      transition: { 
-        duration: 0.2 
-      }
-    }
+      transition: {
+        duration: 0.2,
+      },
+    },
   };
 
   const messageVariants = {
     hidden: { opacity: 0, y: 10 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
-        type: "spring", 
-        damping: 20, 
-        stiffness: 300 
-      }
-    }
+      transition: {
+        type: "spring",
+        damping: 20,
+        stiffness: 300,
+      },
+    },
   };
 
   const buttonVariants = {
-    hover: { 
+    hover: {
       scale: 1.05,
       boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
-      transition: { 
-        type: "spring", 
-        stiffness: 400, 
-        damping: 10 
-      }
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 10,
+      },
     },
-    tap: { 
+    tap: {
       scale: 0.95,
-      transition: { 
-        type: "spring", 
-        stiffness: 400, 
-        damping: 10 
-      }
-    }
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 10,
+      },
+    },
   };
 
   const inputGroupVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
-        delay: 0.2, 
-        duration: 0.3 
-      }
-    }
+      transition: {
+        delay: 0.2,
+        duration: 0.3,
+      },
+    },
   };
 
   const typingIndicatorVariants = {
     initial: { scale: 0.8, opacity: 0.5 },
-    animate: { 
-      scale: [0.8, 1, 0.8], 
+    animate: {
+      scale: [0.8, 1, 0.8],
       opacity: [0.5, 1, 0.5],
       transition: {
         duration: 1,
         repeat: Infinity,
-        repeatType: "loop"
-      }
-    }
+        repeatType: "loop",
+      },
+    },
   };
 
   return (
@@ -175,7 +175,11 @@ const Chatbot = () => {
             whileTap={buttonVariants.tap}
             transition={{ type: "spring", stiffness: 500, damping: 15 }}
           >
-            <img src="/icon.webp" alt="Chat Icon" className="w-[72px] h-[72px]" />
+            <img
+              src="/icon.webp"
+              alt="Chat Icon"
+              className="w-[72px] h-[72px]"
+            />
           </motion.button>
         )}
 
@@ -187,7 +191,7 @@ const Chatbot = () => {
             animate="visible"
             exit="exit"
           >
-            <motion.div 
+            <motion.div
               className="flex justify-between items-center px-5 py-4 bg-blue-100 border-b border-blue-200"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -200,11 +204,11 @@ const Chatbot = () => {
                   className="w-6 h-6 rounded-full"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ 
+                  transition={{
                     type: "spring",
                     stiffness: 500,
                     damping: 15,
-                    delay: 0.2
+                    delay: 0.2,
                   }}
                 />
                 <motion.span
@@ -233,14 +237,14 @@ const Chatbot = () => {
               transition={{ delay: 0.2 }}
             >
               {messages.length === 0 && (
-                <motion.div 
+                <motion.div
                   className="text-center text-gray-500 text-base"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
+                  transition={{
                     delay: 0.4,
                     type: "spring",
-                    stiffness: 100
+                    stiffness: 100,
                   }}
                 >
                   Hello! I'm your NITJ Margdarshak assistant. How can I help you
@@ -252,12 +256,14 @@ const Chatbot = () => {
                 <motion.div
                   key={index}
                   className={`flex w-full flex-col gap-1 ${
-                    msg.role === "user" ? "justify-end items-end" : "justify-start"
+                    msg.role === "user"
+                      ? "justify-end items-end"
+                      : "justify-start"
                   } mb-2`}
                   variants={messageVariants}
                   initial="hidden"
                   animate="visible"
-                  transition={{ 
+                  transition={{
                     delay: 0.1 * index,
                   }}
                 >
@@ -269,10 +275,10 @@ const Chatbot = () => {
                     }`}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ 
+                    transition={{
                       type: "spring",
                       stiffness: 500,
-                      damping: 25
+                      damping: 25,
                     }}
                   >
                     {msg.content}
@@ -280,8 +286,8 @@ const Chatbot = () => {
 
                   {/* Source link below assistant messages */}
                   {msg.role === "assistant" && msg.source_link_metadata && (
-                    <motion.div 
-                      className="text-xs text-blue-600 hover:text-blue-800 underline ml-2 mt-1"
+                    <motion.div
+                      className="text-xs text-blue-600 truncate max-w-xs hover:text-blue-800 underline ml-2 mt-1"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3 }}
@@ -314,7 +320,7 @@ const Chatbot = () => {
               ))}
 
               {loading && (
-                <motion.div 
+                <motion.div
                   className="mr-auto max-w-[85%] mb-4 bg-blue-200 text-gray-800 px-4 py-3 rounded-2xl rounded-bl-none text-sm shadow flex items-center gap-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -322,21 +328,21 @@ const Chatbot = () => {
                 >
                   <span>Thinking</span>
                   <div className="flex gap-1">
-                    <motion.div 
+                    <motion.div
                       className="w-2 h-2 rounded-full bg-gray-800"
                       variants={typingIndicatorVariants}
                       initial="initial"
                       animate="animate"
                       transition={{ delay: 0 }}
                     />
-                    <motion.div 
+                    <motion.div
                       className="w-2 h-2 rounded-full bg-gray-800"
                       variants={typingIndicatorVariants}
                       initial="initial"
                       animate="animate"
                       transition={{ delay: 0.2 }}
                     />
-                    <motion.div 
+                    <motion.div
                       className="w-2 h-2 rounded-full bg-gray-800"
                       variants={typingIndicatorVariants}
                       initial="initial"
@@ -348,22 +354,23 @@ const Chatbot = () => {
               )}
             </motion.div>
 
-            <motion.div 
+            <motion.div
               className="flex flex-col gap-3 items-start px-5 pb-4 pt-1 border-t border-gray-200 bg-white"
               variants={inputGroupVariants}
               initial="hidden"
               animate="visible"
             >
-              <motion.div 
-                className="text-xs text-gray-500 italic ml-2 mt-1 max-w-[85%]"
+              <motion.div
+                className="text-xs text-gray-500  ml-2 mt-1 max-w-[85%]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.8 }}
                 transition={{ delay: 0.4 }}
               >
-                Disclaimer: This assistant provides general guidance based on
-                available information and is not a substitute for official
-                academic or administrative advice. Always consult NITJ authorities
-                for critical decisions.
+                <span className="font-semibold text-red-500">Disclaimer:</span>
+                This assistant provides general guidance based on available
+                information and is not a substitute for official academic or
+                administrative advice. Always consult NITJ authorities for
+                critical decisions.
               </motion.div>
               <div className="flex w-full">
                 <motion.input
@@ -376,25 +383,27 @@ const Chatbot = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.3 }}
-                  whileFocus={{ boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.3)" }}
+                  whileFocus={{
+                    boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.3)",
+                  }}
                 />
                 <motion.button
                   onClick={sendMessage}
                   className="ml-2 p-2 bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-sm shadow"
-                  whileHover={{ 
+                  whileHover={{
                     scale: 1.05,
-                    backgroundColor: "#2563EB", 
+                    backgroundColor: "#2563EB",
                     y: -2,
-                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
                   }}
                   whileTap={{ scale: 0.95 }}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ 
+                  transition={{
                     delay: 0.4,
                     type: "spring",
                     stiffness: 500,
-                    damping: 15
+                    damping: 15,
                   }}
                 >
                   ➤
