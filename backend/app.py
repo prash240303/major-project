@@ -26,8 +26,8 @@ load_dotenv()
 app = FastAPI()
 
 origins = [
-    "http://localhost:5173",  # Or 5173 if using Vite
-    "https://major-project-lac.vercel.app/"
+    "http://localhost:5173", 
+    "https://major-project-mqf2.vercel.app"
 ]
 
 app.add_middleware(
