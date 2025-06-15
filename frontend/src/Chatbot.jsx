@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
-// const BACKEND_URL = "https://margdarshak-backend.onrender.com"|| ""; // Uncomment this line for production
+// const BACKEND_URL = "https://margdarshak-backend.onrender.com"|| "";
 // const BACKEND_URL = "http://15.207.109.149:8000";
 // const BACKEND_URL = "http://localhost:8000"; // For local development
 const BACKEND_URL = "https://margdarshak.tech";
