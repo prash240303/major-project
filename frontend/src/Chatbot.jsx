@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // const BACKEND_URL = "https://margdarshak-backend.onrender.com"|| ""; // Uncomment this line for production
 // const BACKEND_URL = "http://15.207.109.149:8000";
+// const BACKEND_URL = "http://localhost:8000"; // For local development
 const BACKEND_URL = "https://margdarshak.tech";
 
 const Chatbot = () => {
@@ -165,12 +166,12 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-inter">
+    <div className="fixed max-w-sm h-[300px] overflow-y-auto bottom-6 right-6 z-50 font-inter">
       <AnimatePresence>
         {!chatExpanded && (
           <motion.button
             onClick={toggleChat}
-            className="w-fit h-fit p-0 bg-white overflow-hidden cursor-pointer rounded-full border border-blue-500 shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
+            className="w-24 h-24 p-0 bg-white overflow-hidden cursor-pointer rounded-full border border-blue-500 shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
@@ -364,7 +365,7 @@ const Chatbot = () => {
               animate="visible"
             >
               <motion.div
-                className="text-xs text-gray-500  ml-2 mt-1 max-w-[85%]"
+                className="text-xs text-gray-800  ml-2 mt-1 max-w-[85%]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.8 }}
                 transition={{ delay: 0.4 }}
