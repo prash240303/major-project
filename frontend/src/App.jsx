@@ -1,7 +1,10 @@
-import React, { useEffect } from "react";
-import Chatbot from "./Chatbot";
+import { StrictMode, useEffect } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import Chatbot from './Chatbot'
 
-function App() {
+// Component to handle font loading for embedded chatbot
+function EmbeddedChatbot() {
   // Add Inter font to the document if it's not already added
   useEffect(() => {
     const link = document.createElement("link");
@@ -11,32 +14,22 @@ function App() {
     document.head.appendChild(link);
 
     return () => {
-      document.head.removeChild(link);
+      // Only remove if it still exists (prevents errors in embedded contexts)
+      if (document.head.contains(link)) {
+        document.head.removeChild(link);
+      }
     };
   }, []);
 
   return (
-    <div className="font-inter max-w-[1200px] mx-auto px-6">
-      <h1 className="text-2xl font-bold text-blue-800 py-6 border-b border-gray-200 mb-6 flex items-center gap-3">
-        <span>
-          <img
-            src="https://www.nitj.ac.in/public/assets/images/logo_250.png"
-            alt="Logo"
-            className="w-10 h-10 rounded-full mr-2"
-          />
-        </span>
-        Welcome to Margdarshak
-      </h1>
-
-      <div className="py-6">
-        <div className="text-lg text-gray-600 mb-9 leading-relaxed">
-          Hello! I'm your NITJ Margdarshak assistant. How can I help you today?
-        </div>
-      </div>
-
+    <div className="font-inter">
       <Chatbot />
     </div>
   );
 }
 
-export default App;
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <EmbeddedChatbot />
+  </StrictMode>,
+)
