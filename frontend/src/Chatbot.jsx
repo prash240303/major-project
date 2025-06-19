@@ -424,12 +424,12 @@ const Chatbot = () => {
             >
               <div className="max-w-4xl mx-auto">
                 <motion.div
-                  className="text-sm text-gray-600 mb-4 text-center"
+                  className="text-xs text-gray-600 mb-4 text-center"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.8 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <span className="font-semibold text-red-500">Disclaimer:</span>
+                  <span className="font-semibold text-sm text-red-500">Disclaimer:</span>
                   {" "}This assistant provides general guidance based on available
                   information and is not a substitute for official academic or
                   administrative advice. Always consult NITJ authorities for
@@ -443,7 +443,7 @@ const Chatbot = () => {
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask me anything..."
-                    className="flex-1 px-6 py-4 border border-gray-300 rounded-full text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+                    className="flex-1 px-4 py-0 border border-gray-300 rounded-full text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3, duration: 0.3 }}
@@ -454,7 +454,7 @@ const Chatbot = () => {
                   <motion.button
                     onClick={sendMessage}
                     disabled={!prompt.trim() || loading}
-                    className="px-8 py-4 bg-blue-500 text-white rounded-full flex items-center justify-center text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-full flex items-center justify-center text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={!loading && prompt.trim() ? {
                       scale: 1.05,
                       backgroundColor: "#2563EB",
