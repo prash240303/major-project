@@ -211,7 +211,7 @@ const Chatbot = () => {
   return (
     <>
       {/* Chat Button - Only show when not expanded */}
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {!chatExpanded && (
           <motion.div
             className="fixed bottom-6 right-6 z-50 font-inter"
@@ -234,11 +234,10 @@ const Chatbot = () => {
             </motion.button>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence> */}
 
       {/* Full Screen Chat Overlay */}
       <AnimatePresence>
-        {chatExpanded && (
           <motion.div
             className="fixed inset-0 z-50 bg-white font-inter flex flex-col"
             variants={fullScreenVariants}
@@ -275,14 +274,14 @@ const Chatbot = () => {
                   Margdarshak Assistant
                 </motion.span>
               </span>
-              <motion.button
+              {/* <motion.button
                 onClick={toggleChat}
                 className="w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-blue-50 hover:text-gray-600 transition text-xl"
                 whileHover={{ scale: 1.1, backgroundColor: "#EBF5FF" }}
                 whileTap={{ scale: 0.9 }}
               >
                 ✕
-              </motion.button>
+              </motion.button> */}
             </motion.div>
 
             {/* Chat Messages Container */}
@@ -478,7 +477,6 @@ const Chatbot = () => {
               </div>
             </motion.div>
           </motion.div>
-        )}
       </AnimatePresence>
     </>
   );
