@@ -432,7 +432,7 @@ const Chatbot = () => {
                   <span className="font-semibold text-sm text-red-500">Disclaimer:</span>
                   {" "}This assistant provides general guidance based on available
                   information and is not a substitute for official academic or
-                  administrative advice. Always consult NITJ authorities for
+                  administrative advice. Always consult NIT Jalandhar authorities for
                   critical decisions.
                 </motion.div>
                 
