@@ -15,10 +15,18 @@ const Chatbot = () => {
   const [loading, setLoading] = useState(false);
   const chatContainerRef = useRef(null);
 
-
-
-  
-  const toggleChat = () => setChatExpanded((prev) => !prev);
+  const toggleChat = () => {
+    setChatExpanded((prev) => !prev);
+    
+    // Handle body overflow when chat is expanded/collapsed
+    if (!chatExpanded) {
+      // Expanding - hide body overflow
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Collapsing - restore body overflow
+      document.body.style.overflow = '';
+    }
+  };
 
   const sendMessage = async () => {
     if (!prompt.trim()) return;
@@ -34,7 +42,7 @@ const Chatbot = () => {
         conversation_id: conversationId,
         messages: newMessages,
       };
-      console.log("payload", payload)
+      console.log("payload", payload);
       const response = await axios.post(`${BACKEND_URL}/chat`, payload);
       const data = response.data;
       console.log("Response:", data);
@@ -64,6 +72,10 @@ const Chatbot = () => {
       e.preventDefault();
       sendMessage();
     }
+    // Handle Escape key to close chat
+    if (e.key === "Escape" && chatExpanded) {
+      toggleChat();
+    }
   };
 
   useEffect(() => {
@@ -79,10 +91,25 @@ const Chatbot = () => {
       "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
-    return () => {
-      document.head.removeChild(link);
+    
+    // Add global event listeners
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === "Escape" && chatExpanded) {
+        toggleChat();
+      }
     };
-  }, []);
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    
+    return () => {
+      if (document.head.contains(link)) {
+        document.head.removeChild(link);
+      }
+      document.removeEventListener('keydown', handleGlobalKeyDown);
+      // Cleanup: restore body overflow when component unmounts
+      document.body.style.overflow = '';
+    };
+  }, [chatExpanded]);
 
   // Animation variants
   const chatWindowVariants = {
@@ -101,6 +128,22 @@ const Chatbot = () => {
       opacity: 0,
       scale: 0.8,
       y: 20,
+      transition: {
+        duration: 0.2,
+      },
+    },
+  };
+
+  const fullScreenVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+      },
+    },
+    exit: {
+      opacity: 0,
       transition: {
         duration: 0.2,
       },
@@ -166,46 +209,55 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="fixed max-w-sm h-[300px] overflow-y-auto bottom-6 right-6 z-50 font-inter">
+    <>
+      {/* Chat Button - Only show when not expanded */}
       <AnimatePresence>
         {!chatExpanded && (
-          <motion.button
-            onClick={toggleChat}
-            className="w-24 h-24 p-0 bg-white overflow-hidden cursor-pointer rounded-full border border-blue-500 shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
+          <motion.div
+            className="fixed bottom-6 right-6 z-50 font-inter"
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
-            whileHover={buttonVariants.hover}
-            whileTap={buttonVariants.tap}
             transition={{ type: "spring", stiffness: 500, damping: 15 }}
           >
-            <img
-              src="/icon.webp"
-              alt="Chat Icon"
-              className="w-[72px] h-[72px]"
-            />
-          </motion.button>
+            <motion.button
+              onClick={toggleChat}
+              className="w-24 h-24 p-0 bg-white overflow-hidden cursor-pointer rounded-full border border-blue-500 shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
+              whileHover={buttonVariants.hover}
+              whileTap={buttonVariants.tap}
+            >
+              <img
+                src="/icon.webp"
+                alt="Chat Icon"
+                className="w-[72px] h-[72px]"
+              />
+            </motion.button>
+          </motion.div>
         )}
+      </AnimatePresence>
 
+      {/* Full Screen Chat Overlay */}
+      <AnimatePresence>
         {chatExpanded && (
           <motion.div
-            className="w-[400px] max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden border border-gray-200 font-inter"
-            variants={chatWindowVariants}
+            className="fixed inset-0 z-50 bg-white font-inter flex flex-col"
+            variants={fullScreenVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
           >
+            {/* Header */}
             <motion.div
-              className="flex justify-between items-center px-5 py-4 bg-blue-100 border-b border-blue-200"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              className="flex justify-between items-center px-6 py-4 bg-blue-100 border-b border-blue-200 flex-shrink-0"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <span className="text-blue-900 font-semibold text-sm flex items-center gap-2">
+              <span className="text-blue-900 font-semibold text-lg flex items-center gap-3">
                 <motion.img
                   src="https://www.nitj.ac.in/public/assets/images/logo_250.png"
                   alt="Logo"
-                  className="w-6 h-6 rounded-full"
+                  className="w-8 h-8 rounded-full"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{
@@ -225,7 +277,7 @@ const Chatbot = () => {
               </span>
               <motion.button
                 onClick={toggleChat}
-                className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-blue-50 hover:text-gray-600 transition"
+                className="w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-blue-50 hover:text-gray-600 transition text-xl"
                 whileHover={{ scale: 1.1, backgroundColor: "#EBF5FF" }}
                 whileTap={{ scale: 0.9 }}
               >
@@ -233,191 +285,202 @@ const Chatbot = () => {
               </motion.button>
             </motion.div>
 
+            {/* Chat Messages Container */}
             <motion.div
               ref={chatContainerRef}
-              className="flex flex-col gap-4 px-5 py-8 bg-gray-50 flex-grow overflow-y-auto"
+              className="flex-1 overflow-y-auto px-6 py-8 bg-gray-50"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
             >
-              {messages.length === 0 && (
-                <motion.div
-                  className="text-center text-gray-500 text-base"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    delay: 0.4,
-                    type: "spring",
-                    stiffness: 100,
-                  }}
-                >
-                  Hello! I'm your NITJ Margdarshak assistant. How can I help you
-                  today?
-                </motion.div>
-              )}
-
-              {messages.map((msg, index) => (
-                <motion.div
-                  key={index}
-                  className={`flex w-full flex-col gap-1 ${
-                    msg.role === "user"
-                      ? "justify-end items-end"
-                      : "justify-start"
-                  } mb-2`}
-                  variants={messageVariants}
-                  initial="hidden"
-                  animate="visible"
-                  transition={{
-                    delay: 0.1 * index,
-                  }}
-                >
+              <div className="max-w-4xl mx-auto">
+                {messages.length === 0 && (
                   <motion.div
-                    className={`max-w-[95%] text-sm shadow-md px-4 py-3 rounded-2xl ${
-                      msg.role === "user"
-                        ? "bg-blue-500 text-white rounded-br-none"
-                        : "bg-blue-100 text-gray-800 rounded-bl-none"
-                    }`}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center text-gray-500 text-lg py-12"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{
+                      delay: 0.4,
                       type: "spring",
-                      stiffness: 500,
-                      damping: 25,
+                      stiffness: 100,
                     }}
                   >
-                    {msg.content}
+                    Hello! I'm your NITJ Margdarshak assistant. How can I help you today?
                   </motion.div>
+                )}
 
-                  {/* Source link below assistant messages */}
-                  {msg.role === "assistant" && msg.source_link_metadata && (
+                <div className="space-y-6">
+                  {messages.map((msg, index) => (
                     <motion.div
-                      className="text-xs text-blue-600 truncate max-w-xs hover:text-blue-800 underline ml-2 mt-1"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.3 }}
+                      key={index}
+                      className={`flex w-full ${
+                        msg.role === "user" ? "justify-end" : "justify-start"
+                      }`}
+                      variants={messageVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{
+                        delay: 0.1 * index,
+                      }}
                     >
-                      <a
-                        href={msg.source_link_metadata}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3 w-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                      <div className="max-w-[70%] flex flex-col gap-2">
+                        <motion.div
+                          className={`text-base shadow-md px-6 py-4 rounded-2xl ${
+                            msg.role === "user"
+                              ? "bg-blue-500 text-white rounded-br-none"
+                              : "bg-white text-gray-800 rounded-bl-none border border-gray-200"
+                          }`}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 500,
+                            damping: 25,
+                          }}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                          {msg.content}
+                        </motion.div>
+
+                        {/* Source link below assistant messages */}
+                        {msg.role === "assistant" && msg.source_link_metadata && (
+                          <motion.div
+                            className="text-sm text-blue-600 hover:text-blue-800 underline ml-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                          >
+                            <a
+                              href={msg.source_link_metadata}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                                />
+                              </svg>
+                              Source: {msg.source_link_metadata}
+                            </a>
+                          </motion.div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {loading && (
+                    <motion.div
+                      className="flex justify-start"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                    >
+                      <div className="max-w-[70%] bg-white border border-gray-200 text-gray-800 px-6 py-4 rounded-2xl rounded-bl-none text-base shadow flex items-center gap-3">
+                        <span>Thinking</span>
+                        <div className="flex gap-1">
+                          <motion.div
+                            className="w-2 h-2 rounded-full bg-gray-800"
+                            variants={typingIndicatorVariants}
+                            initial="initial"
+                            animate="animate"
+                            transition={{ delay: 0 }}
                           />
-                        </svg>
-                        Source : {msg.source_link_metadata}
-                      </a>
+                          <motion.div
+                            className="w-2 h-2 rounded-full bg-gray-800"
+                            variants={typingIndicatorVariants}
+                            initial="initial"
+                            animate="animate"
+                            transition={{ delay: 0.2 }}
+                          />
+                          <motion.div
+                            className="w-2 h-2 rounded-full bg-gray-800"
+                            variants={typingIndicatorVariants}
+                            initial="initial"
+                            animate="animate"
+                            transition={{ delay: 0.4 }}
+                          />
+                        </div>
+                      </div>
                     </motion.div>
                   )}
-                </motion.div>
-              ))}
-
-              {loading && (
-                <motion.div
-                  className="mr-auto max-w-[85%] mb-4 bg-blue-200 text-gray-800 px-4 py-3 rounded-2xl rounded-bl-none text-sm shadow flex items-center gap-2"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                >
-                  <span>Thinking</span>
-                  <div className="flex gap-1">
-                    <motion.div
-                      className="w-2 h-2 rounded-full bg-gray-800"
-                      variants={typingIndicatorVariants}
-                      initial="initial"
-                      animate="animate"
-                      transition={{ delay: 0 }}
-                    />
-                    <motion.div
-                      className="w-2 h-2 rounded-full bg-gray-800"
-                      variants={typingIndicatorVariants}
-                      initial="initial"
-                      animate="animate"
-                      transition={{ delay: 0.2 }}
-                    />
-                    <motion.div
-                      className="w-2 h-2 rounded-full bg-gray-800"
-                      variants={typingIndicatorVariants}
-                      initial="initial"
-                      animate="animate"
-                      transition={{ delay: 0.4 }}
-                    />
-                  </div>
-                </motion.div>
-              )}
+                </div>
+              </div>
             </motion.div>
 
+            {/* Input Section */}
             <motion.div
-              className="flex flex-col gap-3 items-start px-5 pb-4 pt-1 border-t border-gray-200 bg-white"
+              className="flex-shrink-0 px-6 py-6 border-t border-gray-200 bg-white"
               variants={inputGroupVariants}
               initial="hidden"
               animate="visible"
             >
-              <motion.div
-                className="text-xs text-gray-800  ml-2 mt-1 max-w-[85%]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.8 }}
-                transition={{ delay: 0.4 }}
-              >
-                <span className="font-semibold text-red-500">Disclaimer:</span>
-                This assistant provides general guidance based on available
-                information and is not a substitute for official academic or
-                administrative advice. Always consult NITJ authorities for
-                critical decisions.
-              </motion.div>
-              <div className="flex w-full">
-                <motion.input
-                  type="text"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything..."
-                  className="flex-grow px-4 py-3 border border-gray-300 rounded-full text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.3 }}
-                  whileFocus={{
-                    boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.3)",
-                  }}
-                />
-                <motion.button
-                  onClick={sendMessage}
-                  className="ml-2 p-2 bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-sm shadow"
-                  whileHover={{
-                    scale: 1.05,
-                    backgroundColor: "#2563EB",
-                    y: -2,
-                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
-                  }}
-                  whileTap={{ scale: 0.95 }}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{
-                    delay: 0.4,
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 15,
-                  }}
+              <div className="max-w-4xl mx-auto">
+                <motion.div
+                  className="text-sm text-gray-600 mb-4 text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.8 }}
+                  transition={{ delay: 0.4 }}
                 >
-                  ➤
-                </motion.button>
+                  <span className="font-semibold text-red-500">Disclaimer:</span>
+                  {" "}This assistant provides general guidance based on available
+                  information and is not a substitute for official academic or
+                  administrative advice. Always consult NITJ authorities for
+                  critical decisions.
+                </motion.div>
+                
+                <div className="flex gap-4">
+                  <motion.input
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask me anything..."
+                    className="flex-1 px-6 py-4 border border-gray-300 rounded-full text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.3 }}
+                    whileFocus={{
+                      boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.3)",
+                    }}
+                  />
+                  <motion.button
+                    onClick={sendMessage}
+                    disabled={!prompt.trim() || loading}
+                    className="px-8 py-4 bg-blue-500 text-white rounded-full flex items-center justify-center text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={!loading && prompt.trim() ? {
+                      scale: 1.05,
+                      backgroundColor: "#2563EB",
+                      y: -2,
+                      boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+                    } : {}}
+                    whileTap={!loading && prompt.trim() ? { scale: 0.95 } : {}}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      delay: 0.4,
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 15,
+                    }}
+                  >
+                    {loading ? "..." : "Send"}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 };
 
