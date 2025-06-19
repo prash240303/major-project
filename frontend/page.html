@@ -1,603 +1,681 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
     <title>Website with Embedded Chatbot</title>
     <style>
-        /* Reset and base styles */
-        * {
-            box-sizing: border-box;
+      /* Reset and base styles */
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          sans-serif;
+        line-height: 1.6;
+        color: #333;
+        transition: opacity 0.3s ease;
+      }
+
+      /* Main content styles */
+      .main-content {
+        min-height: 100vh;
+        padding: 40px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+      }
+
+      .main-content h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .main-content p {
+        font-size: 1.2rem;
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        opacity: 0.9;
+      }
+
+      .cta-button {
+        display: inline-block;
+        padding: 12px 30px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        text-decoration: none;
+        border-radius: 25px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .cta-button:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Chatbot container */
+      .chatbot-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          sans-serif;
+      }
+
+      /* Floating chat window */
+      .chat-window {
+        position: absolute;
+        bottom: 90px;
+        right: 0;
+        width: 380px;
+        height: 500px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15),
+          0 8px 20px rgba(0, 0, 0, 0.1);
+        transform: translateY(20px) scale(0.95);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+
+      .chat-window.visible {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+        visibility: visible;
+      }
+
+      /* Chat header */
+      .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        background: #dbeafe;
+        border-bottom: 1px solid #bfdbfe;
+        flex-shrink: 0;
+        border-radius: 16px 16px 0 0;
+      }
+
+      .chat-header-content {
+        color: #1e3a8a;
+        font-weight: 600;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .chat-header-logo {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+      }
+
+      .chat-close {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #6b7280;
+        background: none;
+        border: none;
+        transition: all 0.2s ease;
+        font-size: 20px;
+        cursor: pointer;
+      }
+
+      .chat-close:hover {
+        background: #dbeafe;
+        color: #374151;
+      }
+
+      /* Chat iframe */
+      .chat-iframe {
+        width: 100%;
+        height: calc(100% - 73px);
+        border: none;
+        display: block;
+      }
+
+      /* Floating button */
+      .chat-button {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .chat-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 35px rgba(79, 70, 229, 0.4);
+      }
+
+      .chat-button:active {
+        transform: scale(0.95);
+      }
+
+      /* Button states */
+      .chat-button .button-icon {
+        transition: all 0.3s ease;
+      }
+
+      .chat-button.loading .button-icon {
+        animation: pulse 1.5s infinite;
+      }
+
+      .chat-button.open .button-icon {
+        transform: rotate(45deg);
+      }
+
+      /* Loading animation */
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
         }
-        
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            transition: opacity 0.3s ease;
+        50% {
+          opacity: 0.7;
+          transform: scale(0.95);
         }
-        
-        /* Main content styles */
-        .main-content {
-            min-height: 100vh;
-            padding: 40px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-align: center;
-        }
-        
-        .main-content h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        .main-content p {
-            font-size: 1.2rem;
-            max-width: 600px;
-            margin: 0 auto 2rem;
-            opacity: 0.9;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            padding: 12px 30px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 25px;
-            border: 2px solid rgba(255,255,255,0.3);
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .cta-button:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        /* Chatbot container */
+      }
+
+      /* Responsive design */
+      @media (max-width: 480px) {
         .chatbot-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+          bottom: 15px;
+          right: 15px;
         }
-        
-        /* Floating chat window */
+
         .chat-window {
-            position: absolute;
-            bottom: 90px;
-            right: 0;
-            width: 380px;
-            height: 500px;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.1);
-            transform: translateY(20px) scale(0.95);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.08);
+          width: calc(100vw - 30px);
+          height: 70vh;
+          bottom: 85px;
+          right: 0;
+          left: 15px;
+          max-width: none;
         }
-        
-        .chat-window.visible {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        /* Chat header */
-        .chat-header {
-            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-            color: white;
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-radius: 16px 16px 0 0;
-        }
-        
-        .chat-header h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .chat-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-        }
-        
-        .chat-close:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        /* Chat iframe */
-        .chat-iframe {
-            width: 100%;
-            height: calc(100% - 64px);
-            border: none;
-            display: block;
-        }
-        
-        /* Floating button */
+
         .chat-button {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
+          width: 55px;
+          height: 55px;
+          font-size: 22px;
         }
-        
-        .chat-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 35px rgba(79, 70, 229, 0.4);
+
+        .chat-header {
+          padding: 12px 18px;
         }
-        
-        .chat-button:active {
-            transform: scale(0.95);
+
+        .chat-header-content {
+          font-size: 16px;
+          gap: 8px;
         }
-        
-        /* Button states */
-        .chat-button .button-icon {
-            transition: all 0.3s ease;
+
+        .chat-header-logo {
+          width: 28px;
+          height: 28px;
         }
-        
-        .chat-button.loading .button-icon {
-            animation: pulse 1.5s infinite;
+      }
+
+      @media (max-width: 768px) {
+        .main-content h1 {
+          font-size: 2rem;
         }
-        
-        .chat-button.open .button-icon {
-            transform: rotate(45deg);
+
+        .main-content p {
+          font-size: 1rem;
         }
-        
-        /* Loading animation */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(0.95); }
-        }
-        
-        /* Responsive design */
-        @media (max-width: 480px) {
-            .chatbot-container {
-                bottom: 15px;
-                right: 15px;
-            }
-            
-            .chat-window {
-                width: calc(100vw - 30px);
-                height: 70vh;
-                bottom: 85px;
-                right: 0;
-                left: 15px;
-                max-width: none;
-            }
-            
-            .chat-button {
-                width: 55px;
-                height: 55px;
-                font-size: 22px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .main-content h1 {
-                font-size: 2rem;
-            }
-            
-            .main-content p {
-                font-size: 1rem;
-            }
-        }
-        
-        /* Notification badge */
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #EF4444;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            opacity: 0;
-            transform: scale(0);
-            transition: all 0.3s ease;
-        }
-        
-        .notification-badge.visible {
-            opacity: 1;
-            transform: scale(1);
-        }
-        
-        /* Loading state for iframe */
-        .chat-loading {
-            position: absolute;
-            top: 64px;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f8f9fa;
-            color: #6b7280;
-            font-size: 14px;
-        }
-        
-        .chat-loading.hidden {
-            display: none;
-        }
-        
-        /* Smooth animations */
-        .smooth-transition {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+      }
+
+      /* Notification badge */
+      .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        opacity: 0;
+        transform: scale(0);
+        transition: all 0.3s ease;
+      }
+
+      .notification-badge.visible {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* Loading state for iframe */
+      .chat-loading {
+        position: absolute;
+        top: 73px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        color: #6b7280;
+        font-size: 14px;
+      }
+
+      .chat-loading.hidden {
+        display: none;
+      }
+
+      /* Smooth animations */
+      .smooth-transition {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Your existing website content -->
     <div class="main-content">
-        <h1>Welcome to Your Website</h1>
-        <p>This is your main website content. The chatbot will appear as a floating button in the bottom-right corner. Click it to open a compact chat window!</p>
-        <a href="#" class="cta-button">Learn More</a>
+      <h1>Welcome to Your Website</h1>
+      <p>
+        This is your main website content. The chatbot will appear as a floating
+        button in the bottom-right corner. Click it to open a compact chat
+        window!
+      </p>
+      <a href="#" class="cta-button">Learn More</a>
     </div>
-    
+
     <!-- Additional content sections -->
-    <div style="min-height: 100vh; padding: 60px 20px; background: #f8f9fa; color: #333; text-align: center;">
-        <h2 style="font-size: 2.5rem; margin-bottom: 1rem; color: #495057;">Features</h2>
-        <p style="font-size: 1.1rem; max-width: 800px; margin: 0 auto;">
-            Our chatbot provides intelligent assistance for NITJ students and visitors. 
-            Get instant answers to your questions about academics, campus life, and more.
-        </p>
+    <div
+      style="
+        min-height: 100vh;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        color: #333;
+        text-align: center;
+      "
+    >
+      <h2 style="font-size: 2.5rem; margin-bottom: 1rem; color: #495057">
+        Features
+      </h2>
+      <p style="font-size: 1.1rem; max-width: 800px; margin: 0 auto">
+        Our chatbot provides intelligent assistance for NITJ students and
+        visitors. Get instant answers to your questions about academics, campus
+        life, and more.
+      </p>
     </div>
-    
+
     <!-- Floating Chatbot -->
     <div class="chatbot-container">
-        <!-- Chat Window -->
-        <div id="chatWindow" class="chat-window">
-            <!-- Chat Header -->
-            <div class="chat-header">
-                <h3>Margdarshak Assistant</h3>
-                <button id="chatClose" class="chat-close" aria-label="Close chat">
-                    ×
-                </button>
-            </div>
-            
-            <!-- Loading indicator -->
-            <div id="chatLoading" class="chat-loading">
-                Loading chatbot...
-            </div>
-            
-            <!-- Chat iframe -->
-            <iframe 
-                id="chatIframe"
-                class="chat-iframe"
-                src="https://major-project-prash.vercel.app/"
-                title="Margdarshak Chatbot Assistant"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-                style="display: none;">
-            </iframe>
+      <!-- Chat Window -->
+      <div id="chatWindow" class="chat-window">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <div class="chat-header-content">
+            <img
+              src="https://www.nitj.ac.in/public/assets/images/logo_250.png"
+              alt="Logo"
+              class="chat-header-logo"
+            />
+            <span>Margdarshak Assistant</span>
+          </div>
+          <button
+            id="chatClose"
+            class="chat-close"
+            aria-label="Close chat"
+          >
+            ✕
+          </button>
         </div>
-        
-        <!-- Chat Button -->
-        <button id="chatButton" class="chat-button" aria-label="Open chat">
-            <span class="button-icon">💬</span>
-            <div id="notificationBadge" class="notification-badge">1</div>
-        </button>
+
+        <!-- Loading indicator -->
+        <div id="chatLoading" class="chat-loading">Loading chatbot...</div>
+
+        <!-- Chat iframe -->
+        <iframe
+          id="chatIframe"
+          class="chat-iframe"
+          src=""
+          title="Margdarshak Chatbot Assistant"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+          style="display: none"
+        >
+        </iframe>
+      </div>
+
+      <!-- Chat Button -->
+      <button id="chatButton" class="chat-button" aria-label="Open chat">
+        <span class="button-icon">💬</span>
+        <div id="notificationBadge" class="notification-badge">1</div>
+      </button>
     </div>
 
     <script>
-        // Floating Chatbot Manager
-        class FloatingChatbot {
-            constructor() {
-                this.isOpen = false;
-                this.isLoaded = false;
-                this.isLoading = false;
-                
-                this.chatButton = null;
-                this.chatWindow = null;
-                this.chatIframe = null;
-                this.chatLoading = null;
-                this.chatClose = null;
-                this.notificationBadge = null;
-                
-                this.iframeUrl = 'https://major-project-prash.vercel.app/';
-                
-                this.init();
-            }
-            
-            init() {
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', () => this.initializeElements());
-                } else {
-                    this.initializeElements();
-                }
-            }
-            
-            initializeElements() {
-                try {
-                    // Get DOM elements
-                    this.chatButton = document.getElementById('chatButton');
-                    this.chatWindow = document.getElementById('chatWindow');
-                    this.chatIframe = document.getElementById('chatIframe');
-                    this.chatLoading = document.getElementById('chatLoading');
-                    this.chatClose = document.getElementById('chatClose');
-                    this.notificationBadge = document.getElementById('notificationBadge');
-                    
-                    if (!this.chatButton || !this.chatWindow || !this.chatIframe) {
-                        console.error('Required chatbot elements not found');
-                        return;
-                    }
-                    
-                    this.setupEventListeners();
-                    
-                    
-                } catch (error) {
-                    console.error('Error initializing floating chatbot:', error);
-                }
-            }
-            
-            setupEventListeners() {
-                // Chat button click
-                this.chatButton.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.toggleChat();
-                });
-                
-                // Close button click
-                this.chatClose.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.closeChat();
-                });
-                
-                // Click outside to close
-                document.addEventListener('click', (e) => {
-                    if (this.isOpen && !this.chatWindow.contains(e.target) && !this.chatButton.contains(e.target)) {
-                        this.closeChat();
-                    }
-                });
-                
-                // Escape key to close
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape' && this.isOpen) {
-                        this.closeChat();
-                    }
-                });
-                
-                // Iframe events
-                this.chatIframe.addEventListener('load', () => {
-                    this.handleIframeLoad();
-                });
-                
-                this.chatIframe.addEventListener('error', () => {
-                    this.handleIframeError();
-                });
-                
-                // Message listener for iframe communication
-                window.addEventListener('message', (event) => {
-                    this.handleIframeMessage(event);
-                });
-            }
-            
-            toggleChat() {
-                if (this.isOpen) {
-                    this.closeChat();
-                } else {
-                    this.openChat();
-                }
-            }
-            
-            openChat() {
-                if (this.isOpen) return;
-                
-                this.isOpen = true;
-                this.hideNotificationBadge();
-                
-                // Load iframe if not loaded
-                if (!this.isLoaded && !this.isLoading) {
-                    this.loadIframe();
-                }
-                
-                // Show chat window
-                this.chatWindow.classList.add('visible');
-                this.chatButton.classList.add('open');
-                
-                // Update button icon
-                const buttonIcon = this.chatButton.querySelector('.button-icon');
-                if (buttonIcon) {
-                    buttonIcon.textContent = '×';
-                }
-                
-                console.log('Chat opened');
-            }
-            
-            closeChat() {
-                if (!this.isOpen) return;
-                
-                this.isOpen = false;
-                
-                // Hide chat window
-                this.chatWindow.classList.remove('visible');
-                this.chatButton.classList.remove('open');
-                
-                // Update button icon
-                const buttonIcon = this.chatButton.querySelector('.button-icon');
-                if (buttonIcon) {
-                    buttonIcon.textContent = '💬';
-                }
-                
-                console.log('Chat closed');
-            }
-            
-            loadIframe() {
-                if (this.isLoading || this.isLoaded) return;
-                
-                this.isLoading = true;
-                this.chatButton.classList.add('loading');
-                
-                // Show loading state
-                this.chatLoading.classList.remove('hidden');
-                this.chatIframe.style.display = 'none';
-                
-                // Set iframe source
-                this.chatIframe.src = this.iframeUrl;
-                
-                console.log('Loading chatbot iframe...');
-            }
-            
-            handleIframeLoad() {
-                console.log('Chatbot iframe loaded successfully');
-                
-                this.isLoaded = true;
-                this.isLoading = false;
-                this.chatButton.classList.remove('loading');
-                
-                // Hide loading and show iframe
-                setTimeout(() => {
-                    this.chatLoading.classList.add('hidden');
-                    this.chatIframe.style.display = 'block';
-                }, 500);
-            }
-            
-            handleIframeError() {
-                console.error('Failed to load chatbot iframe');
-                
-                this.isLoading = false;
-                this.chatButton.classList.remove('loading');
-                
-                // Show error message
-                this.chatLoading.textContent = 'Failed to load chat. Click to retry.';
-                this.chatLoading.style.cursor = 'pointer';
-                this.chatLoading.addEventListener('click', () => {
-                    this.retryLoad();
-                });
-            }
-            
-            retryLoad() {
-                this.isLoaded = false;
-                this.isLoading = false;
-                this.chatLoading.textContent = 'Loading chatbot...';
-                this.chatLoading.style.cursor = 'default';
-                this.loadIframe();
-            }
-            
-            handleIframeMessage(event) {
-                // Handle messages from the iframe
-                if (event.origin !== 'https://major-project-prash.vercel.app') {
-                    return;
-                }
-                
-                try {
-                    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                    
-                    switch (data.type) {
-                        case 'CLOSE_CHAT':
-                            this.closeChat();
-                            break;
-                        case 'NEW_MESSAGE':
-                            this.handleNewMessage(data.payload);
-                            break;
-                        case 'CHAT_READY':
-                            console.log('Chatbot is ready');
-                            break;
-                        default:
-                            console.log('Unknown message from chatbot:', data);
-                    }
-                } catch (error) {
-                    console.warn('Invalid message from chatbot iframe:', error);
-                }
-            }
-            
-            handleNewMessage(messageData) {
-                // Show notification if chat is closed
-                if (!this.isOpen) {
-                    this.showNotificationBadge();
-                }
-            }
-            
-            showNotificationBadge() {
-                if (this.notificationBadge && !this.isOpen) {
-                    this.notificationBadge.classList.add('visible');
-                }
-            }
-            
-            hideNotificationBadge() {
-                if (this.notificationBadge) {
-                    this.notificationBadge.classList.remove('visible');
-                }
-            }
-            
-            sendMessageToIframe(message) {
-                if (this.chatIframe && this.chatIframe.contentWindow && this.isLoaded) {
-                    try {
-                        this.chatIframe.contentWindow.postMessage(message, 'https://major-project-prash.vercel.app');
-                    } catch (error) {
-                        console.warn('Failed to send message to iframe:', error);
-                    }
-                }
-            }
+      // Floating Chatbot Manager
+      class FloatingChatbot {
+        constructor() {
+          this.isOpen = false;
+          this.isLoaded = false;
+          this.isLoading = false;
+
+          this.chatButton = null;
+          this.chatWindow = null;
+          this.chatIframe = null;
+          this.chatLoading = null;
+          this.chatClose = null;
+          this.notificationBadge = null;
+
+          this.iframeUrl = "https://major-project-prash.vercel.app/";
+
+          this.init();
         }
-        
-        // Initialize the floating chatbot
-        const floatingChatbot = new FloatingChatbot();
-        
-        // Global API for external control
-        window.FloatingChatbot = {
-            open: () => floatingChatbot.openChat(),
-            close: () => floatingChatbot.closeChat(),
-            toggle: () => floatingChatbot.toggleChat(),
-            isOpen: () => floatingChatbot.isOpen,
-            showNotification: () => floatingChatbot.showNotificationBadge()
-        };
-        
-        // Performance optimization
-        let chatVisibilityObserver;
-        if ('IntersectionObserver' in window) {
-            chatVisibilityObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        console.log('Chatbot is in viewport');
-                    }
-                });
-            }, { threshold: 0.1 });
-            
-            if (document.getElementById('chatButton')) {
-                chatVisibilityObserver.observe(document.getElementById('chatButton'));
-            }
+
+        init() {
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", () =>
+              this.initializeElements()
+            );
+          } else {
+            this.initializeElements();
+          }
         }
+
+        initializeElements() {
+          try {
+            // Get DOM elements
+            this.chatButton = document.getElementById("chatButton");
+            this.chatWindow = document.getElementById("chatWindow");
+            this.chatIframe = document.getElementById("chatIframe");
+            this.chatLoading = document.getElementById("chatLoading");
+            this.chatClose = document.getElementById("chatClose");
+            this.notificationBadge =
+              document.getElementById("notificationBadge");
+
+            if (!this.chatButton || !this.chatWindow || !this.chatIframe) {
+              console.error("Required chatbot elements not found");
+              return;
+            }
+
+            this.setupEventListeners();
+          } catch (error) {
+            console.error("Error initializing floating chatbot:", error);
+          }
+        }
+
+        setupEventListeners() {
+          // Chat button click
+          this.chatButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.toggleChat();
+          });
+
+          // Close button click
+          this.chatClose.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.closeChat();
+          });
+
+          // Click outside to close
+          document.addEventListener("click", (e) => {
+            if (
+              this.isOpen &&
+              !this.chatWindow.contains(e.target) &&
+              !this.chatButton.contains(e.target)
+            ) {
+              this.closeChat();
+            }
+          });
+
+          // Escape key to close
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && this.isOpen) {
+              this.closeChat();
+            }
+          });
+
+          // Iframe events
+          this.chatIframe.addEventListener("load", () => {
+            this.handleIframeLoad();
+          });
+
+          this.chatIframe.addEventListener("error", () => {
+            this.handleIframeError();
+          });
+
+          // Message listener for iframe communication
+          window.addEventListener("message", (event) => {
+            this.handleIframeMessage(event);
+          });
+        }
+
+        toggleChat() {
+          if (this.isOpen) {
+            this.closeChat();
+          } else {
+            this.openChat();
+          }
+        }
+
+        openChat() {
+          if (this.isOpen) return;
+
+          this.isOpen = true;
+          this.hideNotificationBadge();
+
+          // Load iframe if not loaded
+          if (!this.isLoaded && !this.isLoading) {
+            this.loadIframe();
+          }
+
+          // Show chat window
+          this.chatWindow.classList.add("visible");
+          this.chatButton.classList.add("open");
+
+          // Update button icon
+          const buttonIcon = this.chatButton.querySelector(".button-icon");
+          if (buttonIcon) {
+            buttonIcon.textContent = "×";
+          }
+
+          console.log("Chat opened");
+        }
+
+        closeChat() {
+          if (!this.isOpen) return;
+
+          this.isOpen = false;
+
+          // Hide chat window
+          this.chatWindow.classList.remove("visible");
+          this.chatButton.classList.remove("open");
+
+          // Update button icon
+          const buttonIcon = this.chatButton.querySelector(".button-icon");
+          if (buttonIcon) {
+            buttonIcon.textContent = "💬";
+          }
+
+          console.log("Chat closed");
+        }
+
+        loadIframe() {
+          if (this.isLoading || this.isLoaded) return;
+
+          this.isLoading = true;
+          this.chatButton.classList.add("loading");
+
+          // Show loading state
+          this.chatLoading.classList.remove("hidden");
+          this.chatIframe.style.display = "none";
+
+          // Set iframe source
+          this.chatIframe.src = this.iframeUrl;
+
+          console.log("Loading chatbot iframe...");
+        }
+
+        handleIframeLoad() {
+          console.log("Chatbot iframe loaded successfully");
+
+          this.isLoaded = true;
+          this.isLoading = false;
+          this.chatButton.classList.remove("loading");
+
+          // Hide loading and show iframe
+          setTimeout(() => {
+            this.chatLoading.classList.add("hidden");
+            this.chatIframe.style.display = "block";
+          }, 500);
+        }
+
+        handleIframeError() {
+          console.error("Failed to load chatbot iframe");
+
+          this.isLoading = false;
+          this.chatButton.classList.remove("loading");
+
+          // Show error message
+          this.chatLoading.textContent = "Failed to load chat. Click to retry.";
+          this.chatLoading.style.cursor = "pointer";
+          this.chatLoading.addEventListener("click", () => {
+            this.retryLoad();
+          });
+        }
+
+        retryLoad() {
+          this.isLoaded = false;
+          this.isLoading = false;
+          this.chatLoading.textContent = "Loading chatbot...";
+          this.chatLoading.style.cursor = "default";
+          this.loadIframe();
+        }
+
+        handleIframeMessage(event) {
+          // Handle messages from the iframe
+          if (event.origin !== "https://major-project-prash.vercel.app") {
+            return;
+          }
+
+          try {
+            const data =
+              typeof event.data === "string"
+                ? JSON.parse(event.data)
+                : event.data;
+
+            switch (data.type) {
+              case "CLOSE_CHAT":
+                this.closeChat();
+                break;
+              case "NEW_MESSAGE":
+                this.handleNewMessage(data.payload);
+                break;
+              case "CHAT_READY":
+                console.log("Chatbot is ready");
+                break;
+              default:
+                console.log("Unknown message from chatbot:", data);
+            }
+          } catch (error) {
+            console.warn("Invalid message from chatbot iframe:", error);
+          }
+        }
+
+        handleNewMessage(messageData) {
+          // Show notification if chat is closed
+          if (!this.isOpen) {
+            this.showNotificationBadge();
+          }
+        }
+
+        showNotificationBadge() {
+          if (this.notificationBadge && !this.isOpen) {
+            this.notificationBadge.classList.add("visible");
+          }
+        }
+
+        hideNotificationBadge() {
+          if (this.notificationBadge) {
+            this.notificationBadge.classList.remove("visible");
+          }
+        }
+
+        sendMessageToIframe(message) {
+          if (
+            this.chatIframe &&
+            this.chatIframe.contentWindow &&
+            this.isLoaded
+          ) {
+            try {
+              this.chatIframe.contentWindow.postMessage(
+                message,
+                "https://major-project-prash.vercel.app"
+              );
+            } catch (error) {
+              console.warn("Failed to send message to iframe:", error);
+            }
+          }
+        }
+      }
+
+      // Initialize the floating chatbot
+      const floatingChatbot = new FloatingChatbot();
+
+      // Global API for external control
+      window.FloatingChatbot = {
+        open: () => floatingChatbot.openChat(),
+        close: () => floatingChatbot.closeChat(),
+        toggle: () => floatingChatbot.toggleChat(),
+        isOpen: () => floatingChatbot.isOpen,
+        showNotification: () => floatingChatbot.showNotificationBadge(),
+      };
+
+      // Performance optimization
+      let chatVisibilityObserver;
+      if ("IntersectionObserver" in window) {
+        chatVisibilityObserver = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                console.log("Chatbot is in viewport");
+              }
+            });
+          },
+          { threshold: 0.1 }
+        );
+
+        if (document.getElementById("chatButton")) {
+          chatVisibilityObserver.observe(document.getElementById("chatButton"));
+        }
+      }
     </script>
-</body>
+  </body>
 </html>

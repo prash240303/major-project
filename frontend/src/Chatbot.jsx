@@ -246,7 +246,7 @@ const Chatbot = () => {
             exit="exit"
           >
             {/* Header */}
-            <motion.div
+            {/* <motion.div
               className="flex justify-between items-center px-6 py-4 bg-blue-100 border-b border-blue-200 flex-shrink-0"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -274,15 +274,15 @@ const Chatbot = () => {
                   Margdarshak Assistant
                 </motion.span>
               </span>
-              {/* <motion.button
+              <motion.button
                 onClick={toggleChat}
                 className="w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-blue-50 hover:text-gray-600 transition text-xl"
                 whileHover={{ scale: 1.1, backgroundColor: "#EBF5FF" }}
                 whileTap={{ scale: 0.9 }}
               >
                 ✕
-              </motion.button> */}
-            </motion.div>
+              </motion.button>
+            </motion.div> */}
 
             {/* Chat Messages Container */}
             <motion.div
