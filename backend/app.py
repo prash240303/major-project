@@ -27,7 +27,8 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5173", 
-    "https://major-project-mqf2.vercel.app"
+    "https://major-project-mqf2.vercel.app",
+    "https://dashboard-margdarshak.vercel.app/"
 ]
 
 app.add_middleware(
