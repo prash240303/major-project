@@ -18,6 +18,7 @@ const Chatbot = () => {
   const toggleChat = () => {
     setChatExpanded((prev) => !prev);
     
+    
     // Handle body overflow when chat is expanded/collapsed
     if (!chatExpanded) {
       // Expanding - hide body overflow
