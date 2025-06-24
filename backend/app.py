@@ -18,6 +18,7 @@ from typing import List
 from botocore.exceptions import ClientError
 from io import BytesIO
 from PyPDF2 import PdfReader
+from fastapi import BackgroundTasks
 
 import shutil
 
@@ -671,37 +672,38 @@ async def get_system_status():
 
 
 @app.get("/refresh", response_model=SystemStatusResponse)
-async def refresh_knowledge_base():
-    """Force refresh of the knowledge base by reloading all files"""
+async def refresh_knowledge_base(background_tasks: BackgroundTasks):
+    """Trigger a background refresh of the knowledge base."""
+    
+    def refresh_task():
+        try:
+            initialize_vector_store()
+        except Exception as e:
+            print(f"Background refresh failed: {e}")
+
+    background_tasks.add_task(refresh_task)
+
+    # You can still return current system state (pre-refresh)
+    pdf_count = 0
+    excel_count = 0
+
     try:
-        success = initialize_vector_store()
-        
-        # Get the actual counts from the global variables or vector store
-        pdf_count = 0
-        excel_count = 0
-        
         if retriever is not None:
-            # If you have access to the document count, get it from the vector store
-            # This depends on your vector store implementation
             try:
-                # Assuming you can get the collection or document count
-                # Adjust this based on your actual vector store implementation
                 total_docs = retriever.vectorstore._collection.count() if hasattr(retriever.vectorstore, '_collection') else 0
-                pdf_count = total_docs  # Adjust based on your actual PDF count tracking
-                excel_count = 0  # Based on the logs, no Excel files were found
+                pdf_count = total_docs
             except:
-                # Fallback to default values if we can't get the actual count
-                pdf_count = 130  # Based on the log message "130 document chunks"
+                pdf_count = 130
                 excel_count = 0
-        
-        return SystemStatusResponse(
-            status="refreshed" if success else "failed",
-            knowledge_base_initialized=retriever is not None,
-            pdf_count=pdf_count,
-            excel_count=excel_count
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except:
+        pass
+
+    return SystemStatusResponse(
+        status="refresh_started",
+        knowledge_base_initialized=retriever is not None,
+        pdf_count=pdf_count,
+        excel_count=excel_count
+    )
 
 @app.on_event("startup")
 async def startup_event():
