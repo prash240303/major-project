@@ -15,3 +15,5 @@ openpyxl
 aiofiles
 pypdf
 chromadb
+redis
+aioredis

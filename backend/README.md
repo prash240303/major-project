@@ -80,5 +80,122 @@ You can change the model in the `app.py` file by modifying the `model` parameter
 
 
 
-groq_api_key = os.getenv("GROQ_API_KEY", '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')  # Groq API key
-os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY", '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')  # Set Tavily API key
+
+# Document Q&A API - Refactored Structure
+
+## Project Structure
+
+The application has been refactored into a modular structure for better maintainability and separation of concerns:
+
+```
+project/
+├── main.py                 # FastAPI app with routes only
+├── config.py              # Configuration and environment setup
+├── models.py              # Pydantic models
+├── utils.py               # Utility functions
+├── document_loader.py     # Document loading from S3
+├── vector_store.py        # Vector store management
+├── chat_service.py        # Chat logic and response generation
+├── requirements.txt       # Dependencies
+└── README.md             # This file
+```
+
+## Module Descriptions
+
+### `main.py`
+- Contains only the FastAPI application instance
+- Defines API endpoints (`/chat`, `/status`, `/refresh`, `/health`)
+- Handles CORS configuration
+- Minimal business logic - delegates to service modules
+
+### `config.py`
+- Environment variable loading
+- Configuration constants (CORS origins, directories, contact info)
+- Initialization of LLM and embedding models
+- Centralized configuration management
+
+### `models.py`
+- Pydantic models for request/response schemas
+- `Message`, `QuestionRequest`, `ChatResponse`, `SystemStatusResponse`
+- Clean separation of data models
+
+### `utils.py`
+- Utility functions used across modules
+- PDF metadata extraction
+- Conversation history management
+- Response formatting helpers
+- UUID generation
+
+### `document_loader.py`
+- S3 document loading logic
+- PDF processing and chunking
+- Excel file processing for Q&A pairs
+- Document conversion to LangChain format
+
+### `vector_store.py`
+- Vector store initialization and management
+- Chroma database operations
+- Retriever configuration
+- Global state management for vector store
+
+### `chat_service.py`
+- Main chat processing logic
+- LLM response generation
+- Conversation state management
+- Document relevance checking
+- Response validation
+
+## Key Benefits of This Structure
+
+1. **Separation of Concerns**: Each module has a single, well-defined responsibility
+2. **Maintainability**: Changes to one aspect don't affect others
+3. **Testability**: Each module can be tested independently
+4. **Reusability**: Functions can be easily reused across different parts of the application
+5. **Scalability**: Easy to add new features or modify existing ones
+
+## Environment Variables Required
+
+```bash
+GROQ_API_KEY=your_groq_api_key
+AWS_S3_BUCKET_NAME=your_s3_bucket_name
+# Standard AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION)
+```
+
+## Running the Application
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Set up environment variables in `.env` file
+
+3. Run the application:
+```bash
+python main.py
+```
+
+## API Endpoints
+
+- `POST /chat` - Process chat requests
+- `GET /status` - Get system status
+- `GET /refresh` - Refresh knowledge base
+- `GET /health` - Health check
+
+## Migration Notes
+
+- All functionality remains the same
+- API endpoints are unchanged
+- Environment variables are the same
+- The refactoring only improves code organization
+- No breaking changes to existing integrations
+
+## Future Enhancements
+
+With this modular structure, you can easily:
+- Add new document types by extending `document_loader.py`
+- Implement different LLM providers by modifying `config.py`
+- Add new API endpoints in `main.py`
+- Implement caching mechanisms in `vector_store.py`
+- Add authentication middleware in `main.py`
+- Implement logging across all modules

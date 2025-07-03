@@ -189,7 +189,7 @@
       }
 
       .chat-button.open .button-icon {
-        transform: rotate(45deg);
+        transform: rotate(90deg);
       }
 
       /* Loading animation */
@@ -375,7 +375,9 @@
           this.chatClose = null;
           this.notificationBadge = null;
 
-          this.iframeUrl = "https://major-project-prash.vercel.app/";
+          // this.iframeUrl = "https://major-project-prash.vercel.app/";
+          this.iframeUrl = "http://localhost:5173/"; // For local development
+
 
           this.init();
         }
