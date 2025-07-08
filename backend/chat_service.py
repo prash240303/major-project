@@ -1,3 +1,5 @@
+# File: backend/chat_service.py
+
 import os
 import uuid
 import boto3

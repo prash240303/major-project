@@ -17,3 +17,6 @@ pypdf
 chromadb
 redis
 aioredis
+loguru
+asyncio
+aiofiles

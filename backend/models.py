@@ -1,5 +1,7 @@
+# File: backend/models.py
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi import HTTPException
 
 
 class Message(BaseModel):
